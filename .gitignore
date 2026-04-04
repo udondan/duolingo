@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+
+# uv
+.python-version
+uv.lock
+
+# opencode local config (contains credentials)
+opencode.json
+
+# Ruff cache
+.ruff_cache/
