@@ -50,7 +50,7 @@ export function registerShopTools(server: McpServer): void {
         }
 
         const v2 = await client.getUserDataV2(userId);
-        const course = (v2.courses ?? []).find(
+        const course = v2.courses.find(
           (c) =>
             c.subject === 'language' &&
             (c.learningLanguage === language_abbr || c.topic === language_abbr),
@@ -122,7 +122,7 @@ export function registerShopTools(server: McpServer): void {
         }
 
         const v2 = await client.getUserDataV2(userId);
-        const course = (v2.courses ?? []).find(
+        const course = v2.courses.find(
           (c) =>
             c.subject === 'language' &&
             (c.title ?? '').toLowerCase() === language_name.toLowerCase(),

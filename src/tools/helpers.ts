@@ -91,7 +91,7 @@ function getSkillOrdinal(
   if (skill.dependency_order !== undefined) {
     return skill.dependency_order;
   }
-  if (!skill.dependencies_name || skill.dependencies_name.length === 0) {
+  if (skill.dependencies_name.length === 0) {
     skill.dependency_order = 1;
     return 1;
   }

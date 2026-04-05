@@ -357,8 +357,8 @@ export function registerAccountTools(server: McpServer): void {
 
         const v2 = await client.getUserDataV2(userId);
         // Filter to language courses only (not math/chess/music)
-        const langCourses = (v2.courses ?? []).filter(
-          (c) => c.subject === 'language' && c.learningLanguage,
+        const langCourses = v2.courses.filter(
+          (c) => c.subject === 'language' && c.learningLanguage !== undefined,
         );
         const languages = langCourses.map((c) =>
           abbreviations
@@ -506,7 +506,7 @@ export function registerAccountTools(server: McpServer): void {
           calendar = userData.calendar;
         }
 
-        if (!calendar || calendar.length === 0) {
+        if (calendar.length === 0) {
           return {
             content: [{ type: 'text', text: 'No calendar entries found.' }],
           };
@@ -648,7 +648,7 @@ export function registerAccountTools(server: McpServer): void {
         }
 
         const v2 = await client.getUserDataV2(userId);
-        const courses = v2.courses ?? [];
+        const courses = v2.courses;
 
         if (courses.length === 0) {
           return {
@@ -876,7 +876,7 @@ export function registerAccountTools(server: McpServer): void {
           };
         }
 
-        if (!data.hasActiveGoal || !data.streakGoal) {
+        if (!data.hasActiveGoal) {
           return {
             content: [{ type: 'text', text: 'No active streak goal.' }],
           };
