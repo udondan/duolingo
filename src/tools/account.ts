@@ -404,9 +404,9 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Friends',
       description:
-        "Get a Duolingo user's friends list. " +
-        "Returns each friend's username, total points, and languages they are learning. " +
-        'The queried user is included in this list.',
+        'Get the list of Duolingo users that a given user is following (their friends). ' +
+        "Returns each friend's username, display name, and total XP. " +
+        'Works for any public user, not just the authenticated user.',
       inputSchema: {
         username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
@@ -543,8 +543,9 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Leaderboard',
       description:
-        "Get a Duolingo user's leaderboard ranking among their friends. " +
-        'Returns an ordered list of friends sorted by XP points for the given time unit.',
+        "Get the XP leaderboard for a Duolingo user's friends. " +
+        'Returns the users they follow, sorted by XP for the given time unit (week or month). ' +
+        'Works for any public user, not just the authenticated user.',
       inputSchema: {
         username: UsernameFieldSchema,
         unit: z

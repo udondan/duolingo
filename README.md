@@ -110,9 +110,9 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 | `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today |
 | `duolingo_get_languages` | Languages being learned (full names or abbreviations) |
 | `duolingo_get_courses` | All courses including Math, Chess, and Music with XP per course |
-| `duolingo_get_friends` | Friends list with total XP |
+| `duolingo_get_friends` | Users a given user follows, with total XP (any public user) |
 | `duolingo_get_calendar` | Recent activity calendar (overall or per language) |
-| `duolingo_get_leaderboard` | Weekly/monthly XP leaderboard among friends |
+| `duolingo_get_leaderboard` | Friends sorted by XP for week or month (any public user) |
 | `duolingo_get_shop_items` | Full shop catalogue with prices and item types |
 | `duolingo_get_health` | Current hearts count, max hearts, refill timing |
 | `duolingo_get_currencies` | Gem and lingot balances |

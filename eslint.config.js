@@ -28,6 +28,7 @@ export default defineConfig(
             'tests/tools/*.ts',
             'tests/integration/*.ts',
             'tests/package/*.ts',
+            'tests/server/*.ts',
           ],
           defaultProject: './tsconfig.lint.json',
           maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,

@@ -189,7 +189,7 @@ async function callTool(
   args: Record<string, unknown> = {},
 ): Promise<string> {
   const result = await client.callTool({ name, arguments: args });
-  const content = result.content as Array<{ type: string; text: string }>;
+  const content = result.content as { type: string; text: string }[];
   return content.map((c) => c.text).join('');
 }
 
@@ -507,7 +507,7 @@ describe('MCP Server: tool execution via wire protocol', () => {
       arguments: {},
     });
     expect(result.isError).toBe(true);
-    const text = (result.content as Array<{ text: string }>)
+    const text = (result.content as { text: string }[])
       .map((c) => c.text)
       .join('');
     expect(text).toContain('duolingo_nonexistent_tool');
@@ -520,7 +520,7 @@ describe('MCP Server: tool execution via wire protocol', () => {
       arguments: {},
     });
     expect(result.isError).toBe(true);
-    const text = (result.content as Array<{ text: string }>)
+    const text = (result.content as { text: string }[])
       .map((c) => c.text)
       .join('');
     expect(text).toContain('duolingo_get_language_from_abbr');
