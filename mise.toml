@@ -1,0 +1,77 @@
+[tools]
+node = "lts"
+
+[env]
+# Load .env file if present (never commit this file)
+_.file = ".env"
+
+# ── Tasks ────────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "Install npm dependencies"
+run = "npm install"
+
+[tasks.build]
+description = "Compile TypeScript to dist/"
+run = "npm run build"
+depends = ["install"]
+
+[tasks.typecheck]
+description = "Type-check without emitting files"
+run = "npm run typecheck"
+depends = ["install"]
+
+[tasks.lint]
+description = "Run ESLint"
+run = "npm run lint"
+depends = ["install"]
+
+[tasks."lint:fix"]
+description = "Run ESLint and auto-fix violations"
+run = "npm run lint:fix"
+depends = ["install"]
+
+[tasks.format]
+description = "Format source files with Prettier"
+run = "npm run format"
+depends = ["install"]
+
+[tasks."format:check"]
+description = "Check formatting without writing files"
+run = "npm run format:check"
+depends = ["install"]
+
+[tasks.test]
+description = "Run unit and integration tests"
+run = "npm test"
+depends = ["install"]
+
+[tasks."test:watch"]
+description = "Run tests in watch mode"
+run = "npm run test:watch"
+depends = ["install"]
+
+[tasks."test:coverage"]
+description = "Run tests with coverage report"
+run = "npm run test:coverage"
+depends = ["install"]
+
+[tasks.dev]
+description = "Start MCP server in dev mode (no build step)"
+run = "npm run dev"
+depends = ["install"]
+
+[tasks.start]
+description = "Start the built MCP server"
+run = "npm start"
+depends = ["build"]
+
+# ── Composite tasks ───────────────────────────────────────────────────────────
+
+[tasks.check]
+description = "Run all checks: typecheck + lint + format:check + test"
+depends = ["typecheck", "lint", "format:check", "test"]
+
+[tasks.ci]
+description = "Full CI pipeline: install → build → check"
+depends = ["build", "check"]
