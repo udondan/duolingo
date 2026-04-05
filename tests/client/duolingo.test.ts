@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   DuolingoClient,
   getClient,
@@ -329,8 +329,8 @@ describe('DuolingoClient', () => {
         'fr',
         'en',
       );
-      expect(result['bonjour']).toEqual(['hello', 'good morning']);
-      expect(result['merci']).toEqual(['thank you', 'thanks']);
+      expect(result.bonjour).toEqual(['hello', 'good morning']);
+      expect(result.merci).toEqual(['thank you', 'thanks']);
     });
 
     it('segments large word lists and makes multiple requests', async () => {
@@ -364,40 +364,40 @@ describe('DuolingoClient', () => {
 describe('getClient', () => {
   afterEach(() => {
     resetClient();
-    delete process.env['DUOLINGO_USERNAME'];
-    delete process.env['DUOLINGO_JWT'];
+    delete process.env.DUOLINGO_USERNAME;
+    delete process.env.DUOLINGO_JWT;
   });
 
   it('throws DuolingoAuthError when DUOLINGO_USERNAME is missing', () => {
-    delete process.env['DUOLINGO_USERNAME'];
-    process.env['DUOLINGO_JWT'] = 'some-jwt';
+    delete process.env.DUOLINGO_USERNAME;
+    process.env.DUOLINGO_JWT = 'some-jwt';
     expect(() => getClient()).toThrow(DuolingoAuthError);
   });
 
   it('throws DuolingoAuthError when DUOLINGO_JWT is missing', () => {
-    process.env['DUOLINGO_USERNAME'] = 'testuser';
-    delete process.env['DUOLINGO_JWT'];
+    process.env.DUOLINGO_USERNAME = 'testuser';
+    delete process.env.DUOLINGO_JWT;
     expect(() => getClient()).toThrow(DuolingoAuthError);
   });
 
   it('creates a client when both env vars are set', () => {
-    process.env['DUOLINGO_USERNAME'] = 'testuser';
-    process.env['DUOLINGO_JWT'] = 'some-jwt';
+    process.env.DUOLINGO_USERNAME = 'testuser';
+    process.env.DUOLINGO_JWT = 'some-jwt';
     const client = getClient();
     expect(client).toBeInstanceOf(DuolingoClient);
   });
 
   it('returns the same instance on repeated calls', () => {
-    process.env['DUOLINGO_USERNAME'] = 'testuser';
-    process.env['DUOLINGO_JWT'] = 'some-jwt';
+    process.env.DUOLINGO_USERNAME = 'testuser';
+    process.env.DUOLINGO_JWT = 'some-jwt';
     const c1 = getClient();
     const c2 = getClient();
     expect(c1).toBe(c2);
   });
 
   it('creates a new instance after resetClient()', () => {
-    process.env['DUOLINGO_USERNAME'] = 'testuser';
-    process.env['DUOLINGO_JWT'] = 'some-jwt';
+    process.env.DUOLINGO_USERNAME = 'testuser';
+    process.env.DUOLINGO_JWT = 'some-jwt';
     const c1 = getClient();
     resetClient();
     const c2 = getClient();

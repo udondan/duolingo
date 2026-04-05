@@ -13,24 +13,29 @@ export function registerShopTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Language from Abbreviation
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_language_from_abbr',
-    'Convert a language abbreviation to its full name. ' +
-      'Only works for languages the given user is currently learning.',
-    {
-      language_abbr: z
-        .string()
-        .min(2)
-        .max(5)
-        .describe("Language abbreviation to look up (e.g. 'fr', 'es', 'de')."),
-      username: UsernameFieldSchema,
-    },
     {
       title: 'Get Duolingo Language Name from Abbreviation',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
+      description:
+        'Convert a language abbreviation to its full name. ' +
+        'Only works for languages the given user is currently learning.',
+      inputSchema: {
+        language_abbr: z
+          .string()
+          .min(2)
+          .max(5)
+          .describe(
+            "Language abbreviation to look up (e.g. 'fr', 'es', 'de').",
+          ),
+        username: UsernameFieldSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ language_abbr, username }) => {
       try {
@@ -81,23 +86,28 @@ export function registerShopTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Abbreviation Of
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_abbreviation_of',
-    'Convert a full language name to its abbreviation. ' +
-      'Only works for languages the given user is currently learning.',
-    {
-      language_name: z
-        .string()
-        .min(1)
-        .describe("Full language name to look up (e.g. 'French', 'Spanish')."),
-      username: UsernameFieldSchema,
-    },
     {
       title: 'Get Duolingo Language Abbreviation',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
+      description:
+        'Convert a full language name to its abbreviation. ' +
+        'Only works for languages the given user is currently learning.',
+      inputSchema: {
+        language_name: z
+          .string()
+          .min(1)
+          .describe(
+            "Full language name to look up (e.g. 'French', 'Spanish').",
+          ),
+        username: UsernameFieldSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ language_name, username }) => {
       try {

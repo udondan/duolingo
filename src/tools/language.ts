@@ -32,24 +32,27 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Language Details
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_language_details',
-    "Get a user's status and details for a specific language. " +
-      'Returns level, points, streak, and learning status for the given language.',
-    {
-      language_name: z
-        .string()
-        .min(1)
-        .describe("Full name of the language (e.g. 'French', 'Spanish')."),
-      username: UsernameFieldSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Language Details',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get a user's status and details for a specific language. " +
+        'Returns level, points, streak, and learning status for the given language.',
+      inputSchema: {
+        language_name: z
+          .string()
+          .min(1)
+          .describe("Full name of the language (e.g. 'French', 'Spanish')."),
+        username: UsernameFieldSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_name, username, response_format }) => {
       try {
@@ -100,21 +103,24 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Language Progress
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_language_progress',
-    'Get detailed progress metrics for a specific language. ' +
-      'Returns level, percent to next level, points rank, fluency score, skills learned, and more.',
-    {
-      language_abbr: LanguageAbbrSchema,
-      username: UsernameFieldSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Language Progress',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get detailed progress metrics for a specific language. ' +
+        'Returns level, percent to next level, points rank, fluency score, skills learned, and more.',
+      inputSchema: {
+        language_abbr: LanguageAbbrSchema,
+        username: UsernameFieldSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -162,7 +168,7 @@ export function registerLanguageTools(server: McpServer): void {
         lines.push(`- **Level Progress**: ${progress.level_percent}%`);
         lines.push(`- **Points to Next Level**: ${progress.level_left}`);
         lines.push(`- **Total Points**: ${progress.points}`);
-        if (progress.points_rank != null)
+        if (typeof progress.points_rank === 'number')
           lines.push(`- **Points Rank**: #${progress.points_rank}`);
         lines.push(`- **Streak**: ${progress.streak} days`);
         lines.push(`- **Skills Learned**: ${progress.num_skills_learned}`);
@@ -202,16 +208,18 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Known Topics
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_known_topics',
-    'Get the list of learned topic/skill names for a language.',
-    topicInputSchema,
     {
       title: 'Get Duolingo Known Topics',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description: 'Get the list of learned topic/skill names for a language.',
+      inputSchema: topicInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -247,16 +255,19 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Unknown Topics
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_unknown_topics',
-    'Get the list of not-yet-learned topics/skills for a language.',
-    topicInputSchema,
     {
       title: 'Get Duolingo Unknown Topics',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get the list of not-yet-learned topics/skills for a language.',
+      inputSchema: topicInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -292,17 +303,20 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Golden Topics
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_golden_topics',
-    'Get the list of fully mastered ("golden") topics for a language. ' +
-      'A golden topic has a strength of 1.0 (fully reviewed).',
-    topicInputSchema,
     {
       title: 'Get Duolingo Golden (Mastered) Topics',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get the list of fully mastered ("golden") topics for a language. ' +
+        'A golden topic has a strength of 1.0 (fully reviewed).',
+      inputSchema: topicInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -342,17 +356,20 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Reviewable Topics
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_reviewable_topics',
-    'Get the list of learned but not fully mastered topics for a language. ' +
-      'These are topics that have been started but whose strength is below 1.0, meaning they need review.',
-    topicInputSchema,
     {
       title: 'Get Duolingo Reviewable Topics',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get the list of learned but not fully mastered topics for a language. ' +
+        'These are topics that have been started but whose strength is below 1.0, meaning they need review.',
+      inputSchema: topicInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -392,16 +409,18 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Known Words
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_known_words',
-    'Get the set of words a user has learned in a language.',
-    topicInputSchema,
     {
       title: 'Get Duolingo Known Words',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description: 'Get the set of words a user has learned in a language.',
+      inputSchema: topicInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -461,17 +480,20 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Learned Skills
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_learned_skills',
-    'Get full skill objects for all learned skills, sorted by learning order. ' +
-      'Returns detailed skill data including title, strength, progress, words, and more.',
-    topicInputSchema,
     {
       title: 'Get Duolingo Learned Skills',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get full skill objects for all learned skills, sorted by learning order. ' +
+        'Returns detailed skill data including title, strength, progress, words, and more.',
+      inputSchema: topicInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, username, response_format }) => {
       try {
@@ -533,36 +555,39 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Translations
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_translations',
-    'Get translations for a list of words between two languages. ' +
-      'Returns a dictionary mapping each word to its list of possible translations. ' +
-      "Translations are fetched from Duolingo's dictionary API.",
-    {
-      words: z
-        .array(z.string())
-        .min(1)
-        .describe("List of words to translate (e.g. ['bonjour', 'merci'])."),
-      source: z
-        .string()
-        .optional()
-        .describe(
-          "Source language abbreviation (e.g. 'fr'). Defaults to user's UI language.",
-        ),
-      target: z
-        .string()
-        .optional()
-        .describe(
-          "Target language abbreviation (e.g. 'en'). Defaults to user's current learning language.",
-        ),
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Word Translations',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get translations for a list of words between two languages. ' +
+        'Returns a dictionary mapping each word to its list of possible translations. ' +
+        "Translations are fetched from Duolingo's dictionary API.",
+      inputSchema: {
+        words: z
+          .array(z.string())
+          .min(1)
+          .describe("List of words to translate (e.g. ['bonjour', 'merci'])."),
+        source: z
+          .string()
+          .optional()
+          .describe(
+            "Source language abbreviation (e.g. 'fr'). Defaults to user's UI language.",
+          ),
+        target: z
+          .string()
+          .optional()
+          .describe(
+            "Target language abbreviation (e.g. 'en'). Defaults to user's current learning language.",
+          ),
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ words, source, target, response_format }) => {
       try {
@@ -571,10 +596,10 @@ export function registerLanguageTools(server: McpServer): void {
         // Resolve defaults from user data
         let resolvedSource = source;
         let resolvedTarget = target;
-        if (!resolvedSource || !resolvedTarget) {
+        if (resolvedSource === undefined || resolvedTarget === undefined) {
           const userData = await client.getUserData();
-          if (!resolvedSource) resolvedSource = userData.ui_language;
-          if (!resolvedTarget) {
+          resolvedSource ??= userData.ui_language;
+          if (resolvedTarget === undefined) {
             const langKeys = Object.keys(userData.language_data);
             resolvedTarget = langKeys[0] ?? 'en';
           }
@@ -582,8 +607,8 @@ export function registerLanguageTools(server: McpServer): void {
 
         const translations = await client.getTranslations(
           words,
-          resolvedSource!,
-          resolvedTarget!,
+          resolvedSource,
+          resolvedTarget,
         );
 
         if (Object.keys(translations).length === 0) {
@@ -618,20 +643,23 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Language Voices
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_language_voices',
-    'Get the available text-to-speech (TTS) voices for a language. ' +
-      'Returns a list of voice names. Always includes at least one voice.',
-    {
-      language_abbr: OptionalLanguageAbbrSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Language TTS Voices',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get the available text-to-speech (TTS) voices for a language. ' +
+        'Returns a list of voice names. Always includes at least one voice.',
+      inputSchema: {
+        language_abbr: OptionalLanguageAbbrSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ language_abbr, response_format }) => {
       try {
@@ -692,35 +720,40 @@ export function registerLanguageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Audio URL
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_audio_url',
-    'Get the URL of a pronunciation audio file for a word. ' +
-      'Returns a CloudFront CDN URL pointing to the TTS audio file.',
-    {
-      word: z
-        .string()
-        .min(1)
-        .describe("The word to get pronunciation audio for (e.g. 'bonjour')."),
-      language_abbr: OptionalLanguageAbbrSchema,
-      voice: z
-        .string()
-        .optional()
-        .describe(
-          "Specific voice name to use (e.g. 'mathieu'). Defaults to random.",
-        ),
-      random: z
-        .boolean()
-        .default(true)
-        .describe(
-          "If true, select a random voice. Ignored if 'voice' is specified.",
-        ),
-    },
     {
       title: 'Get Duolingo Word Audio URL',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: true,
+      description:
+        'Get the URL of a pronunciation audio file for a word. ' +
+        'Returns a CloudFront CDN URL pointing to the TTS audio file.',
+      inputSchema: {
+        word: z
+          .string()
+          .min(1)
+          .describe(
+            "The word to get pronunciation audio for (e.g. 'bonjour').",
+          ),
+        language_abbr: OptionalLanguageAbbrSchema,
+        voice: z
+          .string()
+          .optional()
+          .describe(
+            "Specific voice name to use (e.g. 'mathieu'). Defaults to random.",
+          ),
+        random: z
+          .boolean()
+          .default(true)
+          .describe(
+            "If true, select a random voice. Ignored if 'voice' is specified.",
+          ),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ word, language_abbr, voice, random }) => {
       try {
@@ -757,7 +790,7 @@ export function registerLanguageTools(server: McpServer): void {
           const voices = await client.getLanguageVoices(langAbbr);
           if (voices.length > 0) {
             const selectedVoice =
-              voices[Math.floor(Math.random() * voices.length)]!;
+              voices[Math.floor(Math.random() * voices.length)] ?? voices[0];
             const url = await client.buildAudioUrl(
               word,
               langAbbr,

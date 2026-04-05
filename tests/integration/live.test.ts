@@ -17,8 +17,8 @@ import { DuolingoClient, resetClient } from '../../src/client/duolingo.js';
 // Setup
 // ---------------------------------------------------------------------------
 
-const USERNAME = process.env['DUOLINGO_USERNAME'];
-const JWT = process.env['DUOLINGO_JWT'];
+const USERNAME = process.env.DUOLINGO_USERNAME;
+const JWT = process.env.DUOLINGO_JWT;
 
 const SKIP_REASON =
   'Skipping integration tests: DUOLINGO_USERNAME or DUOLINGO_JWT not set';
@@ -299,8 +299,8 @@ describe('Live API: getFollowing / getFollowers', () => {
     const following = await client.getFollowing(userData.id);
     const tp = userData.tracking_properties ?? {};
 
-    if (tp['num_following'] != null) {
-      expect(following.length).toBe(tp['num_following']);
+    if (tp.num_following != null) {
+      expect(following.length).toBe(tp.num_following);
     }
   });
 
@@ -311,8 +311,8 @@ describe('Live API: getFollowing / getFollowers', () => {
     const followers = await client.getFollowers(userData.id);
     const tp = userData.tracking_properties ?? {};
 
-    if (tp['num_followers'] != null) {
-      expect(followers.length).toBe(tp['num_followers']);
+    if (tp.num_followers != null) {
+      expect(followers.length).toBe(tp.num_followers);
     }
   });
 });
@@ -533,8 +533,8 @@ describe('Live API: Known field regressions', () => {
 
     // But they ARE in tracking_properties
     const tp = data.tracking_properties ?? {};
-    expect(typeof tp['num_followers']).toBe('number');
-    expect(typeof tp['num_following']).toBe('number');
+    expect(typeof tp.num_followers).toBe('number');
+    expect(typeof tp.num_following).toBe('number');
 
     // contribution_points is no longer in the API
     if (data.contribution_points === undefined) {
@@ -568,7 +568,7 @@ describe('Live API: Known field regressions', () => {
 
     // The 'created' field returns a human-readable relative string (e.g. "v. 8 Monaten")
     // The correct ISO date is in 'creation_date'
-    if (data.created && data.created.includes('\n')) {
+    if (data.created?.includes('\n')) {
       console.warn(
         'KNOWN: created field contains whitespace/relative text. ' +
           'Use creation_date for ISO date string.',

@@ -6,7 +6,7 @@
  *        get_shop_items, get_health, get_currencies, get_streak_goal
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../client/duolingo.js';
 import {
@@ -19,26 +19,37 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get User Info
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_user_info',
-    "Get a Duolingo user's profile information. Returns username, full name, bio, location, " +
-      'avatar URL, follower/following counts, learning language, UI language, cohort, admin status, and more.',
-    {
-      username: UsernameFieldSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo User Info',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get a Duolingo user's profile information. Returns username, full name, bio, location, " +
+        'avatar URL, follower/following counts, learning language, UI language, cohort, admin status, and more.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
         // num_followers/num_following moved to tracking_properties in current API
         const tp = userData.tracking_properties ?? {};
+        const numFollowers =
+          typeof tp.num_followers === 'number'
+            ? tp.num_followers
+            : userData.num_followers;
+        const numFollowing =
+          typeof tp.num_following === 'number'
+            ? tp.num_following
+            : userData.num_following;
         const info = {
           username: userData.username,
           fullname: userData.fullname,
@@ -46,8 +57,8 @@ export function registerAccountTools(server: McpServer): void {
           location: userData.location,
           avatar: userData.avatar,
           id: userData.id,
-          num_followers: tp['num_followers'] ?? userData.num_followers,
-          num_following: tp['num_following'] ?? userData.num_following,
+          num_followers: numFollowers,
+          num_following: numFollowing,
           learning_language_string: userData.learning_language_string,
           ui_language: userData.ui_language,
           admin: userData.admin,
@@ -63,17 +74,25 @@ export function registerAccountTools(server: McpServer): void {
         }
 
         const lines = [`# Duolingo User: ${info.username}`, ''];
-        if (info.fullname) lines.push(`- **Full Name**: ${info.fullname}`);
-        if (info.bio) lines.push(`- **Bio**: ${info.bio}`);
-        if (info.location) lines.push(`- **Location**: ${info.location}`);
-        lines.push(`- **Learning**: ${info.learning_language_string || 'N/A'}`);
-        lines.push(`- **UI Language**: ${info.ui_language || 'N/A'}`);
-        if (info.num_followers != null)
+        if (info.fullname.length > 0)
+          lines.push(`- **Full Name**: ${info.fullname}`);
+        if (info.bio.length > 0) lines.push(`- **Bio**: ${info.bio}`);
+        if (info.location !== null && info.location.length > 0)
+          lines.push(`- **Location**: ${info.location}`);
+        lines.push(
+          `- **Learning**: ${info.learning_language_string.length > 0 ? info.learning_language_string : 'N/A'}`,
+        );
+        lines.push(
+          `- **UI Language**: ${info.ui_language.length > 0 ? info.ui_language : 'N/A'}`,
+        );
+        if (typeof info.num_followers === 'number')
           lines.push(`- **Followers**: ${info.num_followers}`);
-        if (info.num_following != null)
+        if (typeof info.num_following === 'number')
           lines.push(`- **Following**: ${info.num_following}`);
-        lines.push(`- **Member Since**: ${info.created || 'N/A'}`);
-        if (info.avatar) lines.push(`- **Avatar**: ${info.avatar}`);
+        lines.push(
+          `- **Member Since**: ${info.created !== undefined && info.created.length > 0 ? info.created : 'N/A'}`,
+        );
+        if (info.avatar.length > 0) lines.push(`- **Avatar**: ${info.avatar}`);
 
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {
@@ -85,20 +104,23 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Settings (authenticated user only)
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_settings',
-    "Get the authenticated user's Duolingo account settings. " +
-      'Returns notification preferences and follow/follower relationship flags. ' +
-      'Only works for the authenticated user.',
-    {
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo User Settings',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get the authenticated user's Duolingo account settings. " +
+        'Returns notification preferences and follow/follower relationship flags. ' +
+        'Only works for the authenticated user.',
+      inputSchema: {
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ response_format }) => {
       try {
@@ -111,9 +133,9 @@ export function registerAccountTools(server: McpServer): void {
         };
         // Include social flags only when the API returns them
         if (userData.is_follower_by !== undefined)
-          settings['is_follower_by'] = userData.is_follower_by;
+          settings.is_follower_by = userData.is_follower_by;
         if (userData.is_following !== undefined)
-          settings['is_following'] = userData.is_following;
+          settings.is_following = userData.is_following;
 
         if (response_format === 'json') {
           return {
@@ -128,7 +150,7 @@ export function registerAccountTools(server: McpServer): void {
           const label = key
             .replace(/_/g, ' ')
             .replace(/\b\w/g, (c) => c.toUpperCase());
-          lines.push(`- **${label}**: ${value}`);
+          lines.push(`- **${label}**: ${String(value)}`);
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {
@@ -140,20 +162,23 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Streak Info
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_streak_info',
-    "Get a Duolingo user's current streak information. " +
-      'Returns the site-wide streak count, daily XP goal, and whether the streak has been extended today.',
-    {
-      username: UsernameFieldSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Streak Info',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get a Duolingo user's current streak information. " +
+        'Returns the site-wide streak count, daily XP goal, and whether the streak has been extended today.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ username, response_format }) => {
       try {
@@ -170,16 +195,18 @@ export function registerAccountTools(server: McpServer): void {
 
         const v2 = await client.getUserDataV2(userId);
         const streakData = v2.streakData;
-        const current = streakData?.currentStreak;
+        const current = streakData.currentStreak;
 
         const info = {
           site_streak: v2.streak,
-          daily_goal: streakData?.xpGoal ?? null,
-          streak_extended_today: current
-            ? current.lastExtendedDate === new Date().toISOString().slice(0, 10)
-            : false,
+          daily_goal: streakData.xpGoal ?? null,
+          streak_extended_today:
+            current !== null
+              ? current.lastExtendedDate ===
+                new Date().toISOString().slice(0, 10)
+              : false,
           streak_start: current?.startDate ?? null,
-          longest_streak: streakData?.longestStreak?.length ?? null,
+          longest_streak: streakData.longestStreak?.length ?? null,
         };
 
         if (response_format === 'json') {
@@ -195,9 +222,9 @@ export function registerAccountTools(server: McpServer): void {
           `- **Current Streak**: ${info.site_streak} days`,
           `- **Extended Today**: ${extended}`,
         ];
-        if (info.daily_goal !== null)
+        if (typeof info.daily_goal === 'number')
           lines.push(`- **Daily Goal**: ${info.daily_goal} XP`);
-        if (info.streak_start)
+        if (info.streak_start !== null)
           lines.push(`- **Streak Started**: ${info.streak_start}`);
         if (info.longest_streak !== null)
           lines.push(`- **Longest Streak**: ${info.longest_streak} days`);
@@ -211,20 +238,23 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Daily XP Progress (authenticated user only)
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_daily_xp_progress',
-    "Get the authenticated user's XP progress for today. " +
-      'Returns the daily XP goal, total XP earned today, and a list of lessons completed today. ' +
-      'Only works for the authenticated user.',
-    {
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Daily XP Progress',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: true,
+      description:
+        "Get the authenticated user's XP progress for today. " +
+        'Returns the daily XP goal, total XP earned today, and a list of lessons completed today. ' +
+        'Only works for the authenticated user.',
+      inputSchema: {
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ response_format }) => {
       try {
@@ -289,25 +319,28 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Languages
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_languages',
-    'Get the list of languages a Duolingo user is currently learning.',
-    {
-      username: UsernameFieldSchema,
-      abbreviations: z
-        .boolean()
-        .default(false)
-        .describe(
-          "If true, return language abbreviations (e.g. 'fr') instead of full names (e.g. 'French').",
-        ),
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Learning Languages',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get the list of languages a Duolingo user is currently learning.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        abbreviations: z
+          .boolean()
+          .default(false)
+          .describe(
+            "If true, return language abbreviations (e.g. 'fr') instead of full names (e.g. 'French').",
+          ),
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ username, abbreviations, response_format }) => {
       try {
@@ -366,21 +399,24 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Friends
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_friends',
-    "Get a Duolingo user's friends list. " +
-      "Returns each friend's username, total points, and languages they are learning. " +
-      'The queried user is included in this list.',
-    {
-      username: UsernameFieldSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Friends',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get a Duolingo user's friends list. " +
+        "Returns each friend's username, total points, and languages they are learning. " +
+        'The queried user is included in this list.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ username, response_format }) => {
       try {
@@ -408,7 +444,7 @@ export function registerAccountTools(server: McpServer): void {
 
         const lines = ['# Duolingo Friends', ''];
         for (const friend of friends) {
-          const name = friend.display_name || friend.username;
+          const name = friend.display_name ?? friend.username;
           lines.push(
             `- **${name}** (@${friend.username}) — ${friend.points} XP`,
           );
@@ -423,27 +459,30 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Calendar
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_calendar',
-    "Get a Duolingo user's recent activity calendar. " +
-      'Returns a list of recent activity entries. Optionally filter by language.',
-    {
-      username: UsernameFieldSchema,
-      language_abbr: z
-        .string()
-        .optional()
-        .describe(
-          "Language abbreviation to filter calendar by (e.g. 'fr'). " +
-            'If omitted, returns the overall calendar.',
-        ),
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Activity Calendar',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get a Duolingo user's recent activity calendar. " +
+        'Returns a list of recent activity entries. Optionally filter by language.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        language_abbr: z
+          .string()
+          .optional()
+          .describe(
+            "Language abbreviation to filter calendar by (e.g. 'fr'). " +
+              'If omitted, returns the overall calendar.',
+          ),
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ username, language_abbr, response_format }) => {
       try {
@@ -499,24 +538,27 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Leaderboard
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_leaderboard',
-    "Get a Duolingo user's leaderboard ranking among their friends. " +
-      'Returns an ordered list of friends sorted by XP points for the given time unit.',
-    {
-      username: UsernameFieldSchema,
-      unit: z
-        .enum(['week', 'month'])
-        .default('week')
-        .describe("Time unit for the leaderboard: 'week' or 'month'."),
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Leaderboard',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: true,
+      description:
+        "Get a Duolingo user's leaderboard ranking among their friends. " +
+        'Returns an ordered list of friends sorted by XP points for the given time unit.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        unit: z
+          .enum(['week', 'month'])
+          .default('week')
+          .describe("Time unit for the leaderboard: 'week' or 'month'."),
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ username, unit, response_format }) => {
       try {
@@ -557,7 +599,7 @@ export function registerAccountTools(server: McpServer): void {
           '',
         ];
         for (const [rank, entry] of data.entries()) {
-          const name = entry.display_name || entry.username;
+          const name = entry.display_name ?? entry.username;
           lines.push(
             `${rank + 1}. **${name}** (@${entry.username}) — ${entry.points} pts`,
           );
@@ -572,21 +614,24 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Courses (all subjects: language, math, chess, music)
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_courses',
-    'Get all courses a Duolingo user is enrolled in, including non-language subjects ' +
-      "like Math, Chess, and Music. Returns each course's subject, title, XP earned, " +
-      'and course ID. Language courses also include the language code.',
-    {
-      username: UsernameFieldSchema,
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Courses',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get all courses a Duolingo user is enrolled in, including non-language subjects ' +
+        "like Math, Chess, and Music. Returns each course's subject, title, XP earned, " +
+        'and course ID. Language courses also include the language code.',
+      inputSchema: {
+        username: UsernameFieldSchema,
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ username, response_format }) => {
       try {
@@ -647,20 +692,23 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Shop Items
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_shop_items',
-    'Get the full Duolingo shop catalogue. Returns all purchasable items with ' +
-      'their prices, currency type (gems/lingots), item type, and last-used dates. ' +
-      'This is read-only — it does not purchase anything.',
-    {
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Shop Items',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        'Get the full Duolingo shop catalogue. Returns all purchasable items with ' +
+        'their prices, currency type (gems/lingots), item type, and last-used dates. ' +
+        'This is read-only — it does not purchase anything.',
+      inputSchema: {
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ response_format }) => {
       try {
@@ -689,7 +737,7 @@ export function registerAccountTools(server: McpServer): void {
             `## ${type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`,
           );
           for (const item of typeItems) {
-            const name = item.name || item.id;
+            const name = item.name ?? item.id;
             const currency = item.currencyType === 'XGM' ? 'gems' : 'lingots';
             lines.push(`- **${name}** — ${item.price} ${currency}`);
           }
@@ -705,20 +753,23 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Health (hearts)
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_health',
-    "Get the authenticated user's current hearts/health status. " +
-      'Returns heart count, max hearts, refill eligibility, and time until next heart refill. ' +
-      'Only works for the authenticated user.',
-    {
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Health (Hearts)',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get the authenticated user's current hearts/health status. " +
+        'Returns heart count, max hearts, refill eligibility, and time until next heart refill. ' +
+        'Only works for the authenticated user.',
+      inputSchema: {
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ response_format }) => {
       try {
@@ -755,19 +806,22 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Currencies (gems + lingots)
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_currencies',
-    "Get the authenticated user's gem and lingot balances. " +
-      'Only works for the authenticated user.',
-    {
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Currency Balances',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get the authenticated user's gem and lingot balances. " +
+        'Only works for the authenticated user.',
+      inputSchema: {
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ response_format }) => {
       try {
@@ -794,20 +848,23 @@ export function registerAccountTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   // Get Streak Goal
   // -------------------------------------------------------------------------
-  server.tool(
+  server.registerTool(
     'duolingo_get_streak_goal',
-    "Get the authenticated user's current streak goal and upcoming checkpoints. " +
-      'Shows the last completed goal, upcoming milestones, and the next selected goal. ' +
-      'Only works for the authenticated user.',
-    {
-      response_format: ResponseFormatSchema,
-    },
     {
       title: 'Get Duolingo Streak Goal',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
+      description:
+        "Get the authenticated user's current streak goal and upcoming checkpoints. " +
+        'Shows the last completed goal, upcoming milestones, and the next selected goal. ' +
+        'Only works for the authenticated user.',
+      inputSchema: {
+        response_format: ResponseFormatSchema,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ response_format }) => {
       try {

@@ -7,6 +7,7 @@ import type {
   DuolingoUserData,
   DuolingoFriendUser,
   DuolingoUserDataV2,
+  DuolingoStreakGoal,
 } from '../../src/client/types.js';
 import { DuolingoAuthError } from '../../src/client/errors.js';
 import { callTool } from '../helpers.js';
@@ -680,8 +681,7 @@ describe('Account Tools', () => {
     it('returns message when no active goal', async () => {
       vi.mocked(mockClient.getStreakGoalCurrent!).mockResolvedValue({
         hasActiveGoal: false,
-        streakGoal:
-          null as unknown as import('../../src/client/types.js').DuolingoStreakGoal,
+        streakGoal: null as unknown as DuolingoStreakGoal,
       });
       const result = await callTool(server, 'duolingo_get_streak_goal', {});
       expect(result).toBe('No active streak goal.');

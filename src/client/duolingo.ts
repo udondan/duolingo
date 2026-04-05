@@ -64,7 +64,7 @@ export class DuolingoClient {
   private voiceCache = new Map<string, Set<string>>();
 
   /** Voice URL dictionary: lang → word → Set<url> */
-  private voiceUrlDict: Map<string, Map<string, Set<string>>> = new Map();
+  private voiceUrlDict = new Map<string, Map<string, Set<string>>>();
 
   constructor(username: string, jwt: string) {
     this.username = username;
@@ -131,7 +131,7 @@ export class DuolingoClient {
     const ts = Date.now();
     const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/following?pageSize=500&viewerId=${userId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowingResponse>(url);
-    return resp.following?.users ?? [];
+    return resp.following.users;
   }
 
   /**
@@ -142,7 +142,7 @@ export class DuolingoClient {
     const ts = Date.now();
     const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/followers?pageSize=500&viewerId=${userId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowersResponse>(url);
-    return resp.followers?.users ?? [];
+    return resp.followers.users;
   }
 
   /**
@@ -153,8 +153,8 @@ export class DuolingoClient {
     const ts = Date.now();
     const url = `${BASE_URL}/2023-05-23/users?fields=users%7Bid%7D&username=${encodeURIComponent(username)}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoUserIdResponse>(url);
-    const id = resp.users?.[0]?.id;
-    if (!id) {
+    const id = resp.users[0]?.id;
+    if (id === undefined) {
       throw new DuolingoNotFoundError(`User '${username}' not found.`);
     }
     return id;
@@ -220,7 +220,7 @@ export class DuolingoClient {
     const ts = Date.now();
     const url = `${BASE_URL}/2023-05-23/shop-items?_=${ts}`;
     const resp = await this.makeRequest<DuolingoShopItemsResponse>(url);
-    return resp.shopItems ?? [];
+    return resp.shopItems;
   }
 
   /**
@@ -275,9 +275,8 @@ export class DuolingoClient {
 
   /**
    * Get leaderboard data for a time unit.
-   * Uses the following endpoint which has weeklyXp/monthlyXp per user.
-   * @deprecated The old /friendships/leaderboard_activity endpoint returns empty ranking.
-   * Use getFollowing() and sort by weeklyXp/monthlyXp instead.
+   * Note: the /friendships/leaderboard_activity endpoint returns an empty ranking
+   * for most users. Prefer getFollowing() and sort by weeklyXp/monthlyXp instead.
    */
   async getLeaderboard(
     unit: string,
@@ -333,8 +332,9 @@ export class DuolingoClient {
    * Results are cached per language.
    */
   async getLanguageVoices(langAbbr: string): Promise<string[]> {
-    if (this.voiceCache.has(langAbbr)) {
-      return [...this.voiceCache.get(langAbbr)!];
+    const cached = this.voiceCache.get(langAbbr);
+    if (cached !== undefined) {
+      return [...cached];
     }
 
     const userData = await this.getUserData();
@@ -415,8 +415,8 @@ export class DuolingoClient {
 
   /**
    * Fetch a practice session for a skill.
-   * Used to discover audio URLs for words.
-   * @deprecated Use getGlobalPracticeSession instead — SKILL_PRACTICE is no longer supported.
+   * Note: SKILL_PRACTICE is no longer supported by the API.
+   * Delegates to getGlobalPracticeSession instead.
    */
   async getSession(
     skillId: string,
@@ -440,7 +440,10 @@ export class DuolingoClient {
     if (!this.voiceUrlDict.has(langAbbr)) {
       this.voiceUrlDict.set(langAbbr, new Map());
     }
-    const langDict = this.voiceUrlDict.get(langAbbr)!;
+    // Safe: we just set it above if it wasn't present
+    const langDict =
+      this.voiceUrlDict.get(langAbbr) ?? new Map<string, Set<string>>();
+    this.voiceUrlDict.set(langAbbr, langDict);
 
     const userData = await this.getUserData();
     const langData = userData.language_data[langAbbr];
@@ -489,7 +492,7 @@ export class DuolingoClient {
   private extractVoiceFromTtsUrl(url?: string): string | null {
     if (!url) return null;
     // Match: https://d1vq87e9lcf771.cloudfront.net/<voice>/<hash>
-    const match = url.match(/cloudfront\.net\/([^/]+)\/[^/]+$/);
+    const match = /cloudfront\.net\/([^/]+)\/[^/]+$/.exec(url);
     return match?.[1] ?? null;
   }
 
@@ -517,10 +520,12 @@ export class DuolingoClient {
     url: string,
   ): void {
     const key = word.toLowerCase();
-    if (!dict.has(key)) {
-      dict.set(key, new Set());
+    const existing = dict.get(key);
+    if (existing !== undefined) {
+      existing.add(url);
+    } else {
+      dict.set(key, new Set([url]));
     }
-    dict.get(key)!.add(url);
   }
 
   private addTokenListToVoiceUrlDict(
@@ -589,7 +594,7 @@ export class DuolingoClient {
         const status = err.response.status;
         const body = err.response.data as Record<string, unknown>;
 
-        if (status === 403 && body['blockScript'] != null) {
+        if (status === 403 && body.blockScript != null) {
           throw new DuolingoCaptchaError();
         }
         if (status === 401 || status === 403) {
@@ -625,8 +630,8 @@ let _client: DuolingoClient | null = null;
 export function getClient(): DuolingoClient {
   if (_client) return _client;
 
-  const username = process.env['DUOLINGO_USERNAME'];
-  const jwt = process.env['DUOLINGO_JWT'];
+  const username = process.env.DUOLINGO_USERNAME;
+  const jwt = process.env.DUOLINGO_JWT;
 
   if (!username) {
     throw new DuolingoAuthError(

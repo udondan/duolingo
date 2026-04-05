@@ -114,16 +114,16 @@ describe('Package exports: runtime values', () => {
 
     it('resetClient clears the singleton so getClient throws without env vars', () => {
       resetClient();
-      const savedUsername = process.env['DUOLINGO_USERNAME'];
-      const savedJwt = process.env['DUOLINGO_JWT'];
-      delete process.env['DUOLINGO_USERNAME'];
-      delete process.env['DUOLINGO_JWT'];
+      const savedUsername = process.env.DUOLINGO_USERNAME;
+      const savedJwt = process.env.DUOLINGO_JWT;
+      delete process.env.DUOLINGO_USERNAME;
+      delete process.env.DUOLINGO_JWT;
 
       expect(() => getClient()).toThrow(DuolingoAuthError);
 
       // Restore
-      if (savedUsername) process.env['DUOLINGO_USERNAME'] = savedUsername;
-      if (savedJwt) process.env['DUOLINGO_JWT'] = savedJwt;
+      if (savedUsername) process.env.DUOLINGO_USERNAME = savedUsername;
+      if (savedJwt) process.env.DUOLINGO_JWT = savedJwt;
       resetClient();
     });
   });

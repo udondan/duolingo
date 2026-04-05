@@ -147,7 +147,7 @@ export interface DuolingoUserDataV2 {
 }
 
 export interface DuolingoUserIdResponse {
-  users: Array<{ id: number }>;
+  users: { id: number }[];
 }
 
 export interface DuolingoShopItem {

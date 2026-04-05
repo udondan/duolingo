@@ -8,7 +8,7 @@ type ToolRegistry = Record<
   string,
   {
     handler: (args: unknown) => Promise<{
-      content: Array<{ type: string; text: string }>;
+      content: { type: string; text: string }[];
     }>;
   }
 >;
