@@ -16,9 +16,11 @@ import {
 } from './errors.js';
 import type {
   DuolingoUserData,
-  DuolingoVocabOverview,
   DuolingoDailyProgress,
   DuolingoLeaderboardData,
+  DuolingoFollowingResponse,
+  DuolingoFollowersResponse,
+  DuolingoFriendUser,
   DuolingoShopErrorResponse,
   DuolingoSessionRequest,
   DuolingoSessionResponse,
@@ -125,24 +127,32 @@ export class DuolingoClient {
   }
 
   /**
-   * Get vocabulary overview for the authenticated user.
-   * Optionally switches language first.
+   * Get the list of users the given user is following.
+   * Endpoint: /2017-06-30/friends/users/{userId}/following
    */
-  async getVocabularyOverview(
-    languageAbbr?: string,
-  ): Promise<DuolingoVocabOverview> {
-    if (languageAbbr) {
-      const userData = await this.getUserData();
-      if (!(languageAbbr in userData.language_data)) {
-        await this.switchLanguage(languageAbbr);
-      }
-    }
-    const url = `${BASE_URL}/vocabulary/overview`;
-    return this.makeRequest<DuolingoVocabOverview>(url);
+  async getFollowing(userId: number): Promise<DuolingoFriendUser[]> {
+    const ts = Date.now();
+    const url = `${BASE_URL}/2017-06-30/friends/users/${userId}/following?pageSize=500&viewerId=${userId}&_=${ts}`;
+    const resp = await this.makeRequest<DuolingoFollowingResponse>(url);
+    return resp.following?.users ?? [];
+  }
+
+  /**
+   * Get the list of users who follow the given user.
+   * Endpoint: /2017-06-30/friends/users/{userId}/followers
+   */
+  async getFollowers(userId: number): Promise<DuolingoFriendUser[]> {
+    const ts = Date.now();
+    const url = `${BASE_URL}/2017-06-30/friends/users/${userId}/followers?pageSize=500&viewerId=${userId}&_=${ts}`;
+    const resp = await this.makeRequest<DuolingoFollowersResponse>(url);
+    return resp.followers?.users ?? [];
   }
 
   /**
    * Get leaderboard data for a time unit.
+   * Uses the following endpoint which has weeklyXp/monthlyXp per user.
+   * @deprecated The old /friendships/leaderboard_activity endpoint returns empty ranking.
+   * Use getFollowing() and sort by weeklyXp/monthlyXp instead.
    */
   async getLeaderboard(
     unit: string,

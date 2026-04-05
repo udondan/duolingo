@@ -3,7 +3,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAccountTools } from '../../src/tools/account.js';
 import * as duolingoModule from '../../src/client/duolingo.js';
 import type { DuolingoClient } from '../../src/client/duolingo.js';
-import type { DuolingoUserData } from '../../src/client/types.js';
+import type {
+  DuolingoUserData,
+  DuolingoFriendUser,
+} from '../../src/client/types.js';
 import { DuolingoAuthError } from '../../src/client/errors.js';
 import { callTool } from '../helpers.js';
 
@@ -15,16 +18,10 @@ const MOCK_USER_DATA: DuolingoUserData = {
   username: 'testuser',
   bio: 'Test bio',
   id: 12345,
-  num_following: 5,
   cohort: 1,
-  num_followers: 10,
   learning_language_string: 'French',
-  created: '2020-01-01',
-  contribution_points: 100,
-  gplus_id: '',
-  twitter_id: '',
+  creation_date: '2020-01-01T00:00:00',
   admin: false,
-  invites_left: 3,
   location: 'Berlin',
   fullname: 'Test User',
   avatar: 'https://example.com/avatar.jpg',
@@ -34,8 +31,10 @@ const MOCK_USER_DATA: DuolingoUserData = {
   streak_extended_today: true,
   notify_comment: true,
   deactivated: false,
-  is_follower_by: false,
-  is_following: false,
+  tracking_properties: {
+    num_followers: 10,
+    num_following: 5,
+  },
   calendar: [{ datetime: 1700000000, improvement: 10 }],
   languages: [
     {
@@ -56,7 +55,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
       num_skills_learned: 15,
       level_percent: 40,
       level_points: 500,
-      points_rank: 3,
       next_level: 6,
       level_left: 300,
       language: 'fr',
@@ -64,28 +62,35 @@ const MOCK_USER_DATA: DuolingoUserData = {
       fluency_score: 0.35,
       level: 5,
       calendar: [{ datetime: 1700000000, improvement: 10 }],
-      points_ranking_data: [
-        {
-          username: 'friend1',
-          id: 99001,
-          points_data: {
-            total: 2000,
-            languages: [{ language_string: 'French' }],
-          },
-        },
-        {
-          username: 'testuser',
-          id: 12345,
-          points_data: {
-            total: 1500,
-            languages: [{ language_string: 'French' }],
-          },
-        },
-      ],
       skills: [],
     },
   },
 };
+
+const MOCK_FOLLOWING: DuolingoFriendUser[] = [
+  {
+    userId: 99001,
+    username: 'friend1',
+    displayName: 'Friend One',
+    picture: '//example.com/avatar1.jpg',
+    totalXp: 2000,
+    isFollowing: true,
+    isFollowedBy: false,
+    hasSubscription: false,
+    userScore: { courseId: 'DUOLINGO_FR_EN', score: 150 },
+  },
+  {
+    userId: 12345,
+    username: 'testuser',
+    displayName: 'Test User',
+    picture: '//example.com/avatar2.jpg',
+    totalXp: 1500,
+    isFollowing: true,
+    isFollowedBy: true,
+    hasSubscription: false,
+    userScore: { courseId: 'DUOLINGO_FR_EN', score: 100 },
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -112,9 +117,7 @@ describe('Account Tools', () => {
           updatedTimestamp: Math.floor(Date.now() / 1000) - 3600,
         },
       }),
-      getLeaderboard: vi.fn().mockResolvedValue({
-        ranking: { '99001': '2000', '12345': '1500' },
-      }),
+      getFollowing: vi.fn().mockResolvedValue(MOCK_FOLLOWING),
     };
 
     vi.spyOn(duolingoModule, 'getClient').mockReturnValue(
@@ -142,6 +145,23 @@ describe('Account Tools', () => {
       const parsed = JSON.parse(result);
       expect(parsed.username).toBe('testuser');
       expect(parsed.id).toBe(12345);
+    });
+
+    it('reads num_followers from tracking_properties', async () => {
+      const result = await callTool(server, 'duolingo_get_user_info', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.num_followers).toBe(10);
+      expect(parsed.num_following).toBe(5);
+    });
+
+    it('uses creation_date as the member since date', async () => {
+      const result = await callTool(server, 'duolingo_get_user_info', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.created).toBe('2020-01-01T00:00:00');
     });
 
     it('passes username to getUserData', async () => {
@@ -302,7 +322,6 @@ describe('Account Tools', () => {
       const result = await callTool(server, 'duolingo_get_friends', {});
       expect(result).toContain('# Duolingo Friends');
       expect(result).toContain('friend1');
-      expect(result).toContain('2000 pts');
     });
 
     it('returns JSON friends list', async () => {
@@ -312,27 +331,11 @@ describe('Account Tools', () => {
       const parsed = JSON.parse(result);
       expect(parsed).toHaveLength(2);
       expect(parsed[0].username).toBe('friend1');
+      expect(parsed[0].points).toBe(2000);
     });
 
-    it('returns "No friends found" when points_ranking_data is null', async () => {
-      vi.mocked(mockClient.getUserData!).mockResolvedValue({
-        ...MOCK_USER_DATA,
-        language_data: {
-          fr: {
-            ...MOCK_USER_DATA.language_data['fr']!,
-            points_ranking_data: null,
-          },
-        },
-      });
-      const result = await callTool(server, 'duolingo_get_friends', {});
-      expect(result).toBe('No friends found.');
-    });
-
-    it('returns "No friends found" when language_data is empty', async () => {
-      vi.mocked(mockClient.getUserData!).mockResolvedValue({
-        ...MOCK_USER_DATA,
-        language_data: {},
-      });
+    it('returns "No friends found" when following list is empty', async () => {
+      vi.mocked(mockClient.getFollowing!).mockResolvedValue([]);
       const result = await callTool(server, 'duolingo_get_friends', {});
       expect(result).toBe('No friends found.');
     });
@@ -375,7 +378,7 @@ describe('Account Tools', () => {
   // duolingo_get_leaderboard
   // -------------------------------------------------------------------------
   describe('duolingo_get_leaderboard', () => {
-    it('returns markdown leaderboard', async () => {
+    it('returns markdown leaderboard sorted by weekly score', async () => {
       const result = await callTool(server, 'duolingo_get_leaderboard', {
         unit: 'week',
       });
@@ -383,34 +386,28 @@ describe('Account Tools', () => {
       expect(result).toContain('friend1');
     });
 
-    it('returns JSON leaderboard', async () => {
+    it('returns JSON leaderboard with weekly scores', async () => {
       const result = await callTool(server, 'duolingo_get_leaderboard', {
         unit: 'week',
         response_format: 'json',
       });
       const parsed = JSON.parse(result);
       expect(parsed[0].username).toBe('friend1');
-      expect(parsed[0].points).toBe(2000);
+      expect(parsed[0].points).toBe(150); // userScore.score for week
     });
 
-    it('returns message when ranking is empty', async () => {
-      vi.mocked(mockClient.getLeaderboard!).mockResolvedValue({ ranking: {} });
+    it('returns JSON leaderboard with totalXp for month', async () => {
       const result = await callTool(server, 'duolingo_get_leaderboard', {
-        unit: 'week',
+        unit: 'month',
+        response_format: 'json',
       });
-      expect(result).toContain("No leaderboard data found for unit 'week'");
+      const parsed = JSON.parse(result);
+      expect(parsed[0].username).toBe('friend1');
+      expect(parsed[0].points).toBe(2000); // totalXp for month
     });
 
-    it('handles missing points_ranking_data gracefully', async () => {
-      vi.mocked(mockClient.getUserData!).mockResolvedValue({
-        ...MOCK_USER_DATA,
-        language_data: {
-          fr: {
-            ...MOCK_USER_DATA.language_data['fr']!,
-            points_ranking_data: null,
-          },
-        },
-      });
+    it('returns message when following list is empty', async () => {
+      vi.mocked(mockClient.getFollowing!).mockResolvedValue([]);
       const result = await callTool(server, 'duolingo_get_leaderboard', {
         unit: 'week',
       });

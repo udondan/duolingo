@@ -100,40 +100,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
   },
 };
 
-const MOCK_VOCAB = {
-  language_string: 'French',
-  learning_language: 'fr',
-  from_language: 'en',
-  vocab_overview: [
-    {
-      word_string: 'bonjour',
-      normalized_string: 'bonjour',
-      pos: 'Noun',
-      strength: 0.9,
-      strength_bars: 4,
-      skill: 'Basics 1',
-      last_practiced: '2024-01-01',
-      gender: null,
-      infinitive: null,
-      lexeme_id: 'lex-1',
-      related_lexemes: ['lex-2'],
-    },
-    {
-      word_string: 'bonjours',
-      normalized_string: 'bonjours',
-      pos: 'Noun',
-      strength: 0.8,
-      strength_bars: 3,
-      skill: 'Basics 1',
-      last_practiced: '2024-01-01',
-      gender: null,
-      infinitive: null,
-      lexeme_id: 'lex-2',
-      related_lexemes: ['lex-1'],
-    },
-  ],
-};
-
 // ---------------------------------------------------------------------------
 // Helper to call a registered tool by name
 // ---------------------------------------------------------------------------
@@ -150,7 +116,6 @@ describe('Language Tools', () => {
     server = new McpServer({ name: 'test', version: '1.0.0' });
     mockClient = {
       getUserData: vi.fn().mockResolvedValue(MOCK_USER_DATA),
-      getVocabularyOverview: vi.fn().mockResolvedValue(MOCK_VOCAB),
       getTranslations: vi
         .fn()
         .mockResolvedValue({ bonjour: ['hello', 'good morning'] }),
@@ -165,13 +130,6 @@ describe('Language Tools', () => {
             }
             return `${base}tts/${lang}/token/${word}`;
           },
-        ),
-      getVoiceUrlDictionary: vi
-        .fn()
-        .mockResolvedValue(
-          new Map([
-            ['bonjour', new Set(['https://cdn.example.com/fr/bonjour.mp3'])],
-          ]),
         ),
       invalidateCache: vi.fn(),
       switchLanguage: vi.fn().mockResolvedValue(undefined),
@@ -361,46 +319,6 @@ describe('Language Tools', () => {
       const parsed = JSON.parse(result);
       expect(parsed).toHaveLength(2);
       expect(parsed[0].title).toBe('Basics 1');
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // duolingo_get_vocabulary
-  // -------------------------------------------------------------------------
-  describe('duolingo_get_vocabulary', () => {
-    it('returns markdown vocabulary', async () => {
-      const result = await callTool(server, 'duolingo_get_vocabulary', {});
-      expect(result).toContain('# Vocabulary: French');
-      expect(result).toContain('bonjour');
-    });
-
-    it('returns JSON vocabulary', async () => {
-      const result = await callTool(server, 'duolingo_get_vocabulary', {
-        response_format: 'json',
-      });
-      const parsed = JSON.parse(result);
-      expect(parsed.language_string).toBe('French');
-      expect(parsed.vocab_overview).toHaveLength(2);
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // duolingo_get_related_words
-  // -------------------------------------------------------------------------
-  describe('duolingo_get_related_words', () => {
-    it('returns related words for a known word', async () => {
-      const result = await callTool(server, 'duolingo_get_related_words', {
-        word: 'bonjour',
-      });
-      expect(result).toContain("# Related Words: 'bonjour'");
-      expect(result).toContain('bonjours');
-    });
-
-    it('returns message for unknown word', async () => {
-      const result = await callTool(server, 'duolingo_get_related_words', {
-        word: 'xyz',
-      });
-      expect(result).toContain("No related words found for 'xyz'");
     });
   });
 

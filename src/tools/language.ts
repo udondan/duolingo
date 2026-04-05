@@ -3,7 +3,7 @@
  *
  * Tools: get_language_details, get_language_progress, get_known_topics,
  *        get_unknown_topics, get_golden_topics, get_reviewable_topics,
- *        get_known_words, get_learned_skills, get_vocabulary, get_related_words,
+ *        get_known_words, get_learned_skills,
  *        get_translations, get_language_voices, get_audio_url
  */
 
@@ -542,136 +542,6 @@ export function registerLanguageTools(server: McpServer): void {
           const strengthPct = Math.round(skill.strength * 100);
           lines.push(
             `- **${skill.title}** — Strength: ${strengthPct}% | Progress: ${Math.round(skill.progress_percent)}%`,
-          );
-        }
-        return { content: [{ type: 'text', text: lines.join('\n') }] };
-      } catch (err) {
-        return { content: [{ type: 'text', text: handleError(err) }] };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // Get Vocabulary (authenticated user only)
-  // -------------------------------------------------------------------------
-  server.tool(
-    'duolingo_get_vocabulary',
-    'Get the full vocabulary overview for a language. ' +
-      'Returns detailed word data including strength, part of speech, last practiced date, and related lexemes. ' +
-      'Only works for the authenticated user.',
-    {
-      language_abbr: OptionalLanguageAbbrSchema,
-      response_format: ResponseFormatSchema,
-    },
-    {
-      title: 'Get Duolingo Vocabulary Overview',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    async ({ language_abbr, response_format }) => {
-      try {
-        const vocab = await getClient().getVocabularyOverview(language_abbr);
-
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(vocab, null, 2) }],
-          };
-        }
-
-        const lang = vocab.language_string || language_abbr || 'current';
-        const overview = vocab.vocab_overview;
-        const lines = [`# Vocabulary: ${lang} (${overview.length} words)`, ''];
-        for (const word of overview.slice(0, 50)) {
-          const strengthPct = Math.round(word.strength * 100);
-          lines.push(
-            `- **${word.word_string}** (${word.pos || '?'}) — Strength: ${strengthPct}%`,
-          );
-        }
-        if (overview.length > 50) {
-          lines.push(
-            `\n_... and ${overview.length - 50} more words. Use json format for full list._`,
-          );
-        }
-        return { content: [{ type: 'text', text: lines.join('\n') }] };
-      } catch (err) {
-        return { content: [{ type: 'text', text: handleError(err) }] };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // Get Related Words (authenticated user only)
-  // -------------------------------------------------------------------------
-  server.tool(
-    'duolingo_get_related_words',
-    'Get conjugations and related word forms for a given word. ' +
-      "For example, for the French verb 'aller', returns conjugations like 'allait', 'allons', etc. " +
-      'Only works for the authenticated user.',
-    {
-      word: z
-        .string()
-        .min(1)
-        .describe(
-          "The word to find related forms for (e.g. 'aller', 'gehen').",
-        ),
-      language_abbr: OptionalLanguageAbbrSchema,
-      response_format: ResponseFormatSchema,
-    },
-    {
-      title: 'Get Duolingo Related Words',
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    async ({ word, language_abbr, response_format }) => {
-      try {
-        const vocab = await getClient().getVocabularyOverview(language_abbr);
-        const normalizedWord = word.toLowerCase();
-
-        const wordData = vocab.vocab_overview.find(
-          (w) => w.normalized_string === normalizedWord,
-        );
-
-        if (!wordData) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `No related words found for '${word}'.`,
-              },
-            ],
-          };
-        }
-
-        const relatedLexemes = new Set(wordData.related_lexemes);
-        const related = vocab.vocab_overview.filter((w) =>
-          relatedLexemes.has(w.lexeme_id),
-        );
-
-        if (related.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `No related words found for '${word}'.`,
-              },
-            ],
-          };
-        }
-
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(related, null, 2) }],
-          };
-        }
-
-        const lines = [`# Related Words: '${word}'`, ''];
-        for (const w of related) {
-          lines.push(
-            `- **${w.word_string}** (${w.pos || '?'}) — Skill: ${w.skill || 'N/A'}`,
           );
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };

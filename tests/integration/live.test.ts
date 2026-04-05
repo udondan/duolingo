@@ -254,75 +254,63 @@ describe('Live API: getLeaderboard', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getVocabularyOverview — /vocabulary/overview
+// getFollowing / getFollowers — friends and leaderboard data
 // ---------------------------------------------------------------------------
 
-describe('Live API: getVocabularyOverview', () => {
-  it('returns HTML instead of JSON (known broken endpoint)', async () => {
+describe('Live API: getFollowing / getFollowers', () => {
+  it('getFollowing returns the list of users the authenticated user follows', async () => {
     if (skipIfNoCredentials()) return;
 
-    // The /vocabulary/overview endpoint currently returns HTML, not JSON.
-    // This test documents the known breakage so we can detect when it's fixed.
-    let threwError = false;
-    let result: unknown = null;
+    const userData = await client.getUserData();
+    const following = await client.getFollowing(userData.id);
 
-    try {
-      result = await client.getVocabularyOverview();
-    } catch (err) {
-      threwError = true;
-    }
+    expect(Array.isArray(following)).toBe(true);
 
-    if (!threwError && result !== null) {
-      // If it didn't throw, the result is likely an HTML string (broken)
-      // or a valid vocab object (fixed). Check which case we're in.
-      const isHtml =
-        typeof result === 'string' &&
-        (result as string).includes('<!doctype html');
-      const isValidVocab =
-        typeof result === 'object' &&
-        result !== null &&
-        'vocab_overview' in (result as object);
-
-      if (isHtml) {
-        // Known broken state — document it
-        console.warn(
-          'KNOWN ISSUE: /vocabulary/overview returns HTML instead of JSON',
-        );
-        expect(isHtml).toBe(true); // This test passes to document the known state
-      } else if (isValidVocab) {
-        // Endpoint is working — validate the structure
-        const vocab = result as {
-          language_string: string;
-          vocab_overview: unknown[];
-        };
-        expect(typeof vocab.language_string).toBe('string');
-        expect(Array.isArray(vocab.vocab_overview)).toBe(true);
-      }
+    for (const user of following) {
+      expect(typeof user.userId).toBe('number');
+      expect(typeof user.username).toBe('string');
+      expect(typeof user.totalXp).toBe('number');
+      expect(typeof user.isFollowing).toBe('boolean');
+      expect(typeof user.isFollowedBy).toBe('boolean');
     }
   });
-});
 
-// ---------------------------------------------------------------------------
-// getTranslations — d2.duolingo.com (known broken)
-// ---------------------------------------------------------------------------
-
-describe('Live API: getTranslations', () => {
-  it('d2.duolingo.com is unreachable (known broken endpoint)', async () => {
+  it('getFollowers returns the list of users who follow the authenticated user', async () => {
     if (skipIfNoCredentials()) return;
 
-    // The d2.duolingo.com domain is currently unreachable (DNS failure).
-    // This test documents the known breakage.
-    let errorMessage = '';
+    const userData = await client.getUserData();
+    const followers = await client.getFollowers(userData.id);
 
-    try {
-      await client.getTranslations(['hola'], 'es', 'en');
-    } catch (err) {
-      errorMessage = err instanceof Error ? err.message : String(err);
+    expect(Array.isArray(followers)).toBe(true);
+
+    for (const user of followers) {
+      expect(typeof user.userId).toBe('number');
+      expect(typeof user.username).toBe('string');
     }
+  });
 
-    // Either DNS failure or some other network error
-    expect(errorMessage.length).toBeGreaterThan(0);
-    console.warn(`KNOWN ISSUE: Translation API error: ${errorMessage}`);
+  it('following count matches tracking_properties.num_following', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const following = await client.getFollowing(userData.id);
+    const tp = userData.tracking_properties ?? {};
+
+    if (tp['num_following'] != null) {
+      expect(following.length).toBe(tp['num_following']);
+    }
+  });
+
+  it('followers count matches tracking_properties.num_followers', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const followers = await client.getFollowers(userData.id);
+    const tp = userData.tracking_properties ?? {};
+
+    if (tp['num_followers'] != null) {
+      expect(followers.length).toBe(tp['num_followers']);
+    }
   });
 });
 
@@ -553,43 +541,21 @@ describe('Live API: Known field regressions', () => {
     }
   });
 
-  it('points_ranking_data is NOT present in current API response', async () => {
+  it('friends/leaderboard data comes from /friends/users/{id}/following endpoint', async () => {
     if (skipIfNoCredentials()) return;
 
-    const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
-    if (langKeys.length === 0) return;
+    const userData = await client.getUserData();
+    const following = await client.getFollowing(userData.id);
 
-    const langData = data.language_data[langKeys[0]!]!;
-
-    // points_ranking_data is missing from the current API
-    // This is why get_friends and get_leaderboard return empty results
-    if (langData.points_ranking_data === undefined) {
-      console.warn(
-        'KNOWN REGRESSION: points_ranking_data is missing from language_data. ' +
-          'get_friends and get_leaderboard will return empty results.',
-      );
+    // The following endpoint is the correct source for friends/leaderboard
+    expect(Array.isArray(following)).toBe(true);
+    // Each entry has the fields needed for friends and leaderboard
+    for (const user of following) {
+      expect(typeof user.totalXp).toBe('number');
+      expect(
+        user.userScore === undefined || typeof user.userScore === 'object',
+      ).toBe(true);
     }
-
-    expect(langData.points_ranking_data).toBeUndefined();
-  });
-
-  it('points_rank is NOT present in language_data', async () => {
-    if (skipIfNoCredentials()) return;
-
-    const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
-    if (langKeys.length === 0) return;
-
-    const langData = data.language_data[langKeys[0]!]!;
-
-    if (langData.points_rank === undefined) {
-      console.warn(
-        'KNOWN REGRESSION: points_rank is missing from language_data.',
-      );
-    }
-
-    expect(langData.points_rank).toBeUndefined();
   });
 
   it('created field contains human-readable text; use creation_date instead', async () => {

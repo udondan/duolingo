@@ -345,32 +345,21 @@ export function registerAccountTools(server: McpServer): void {
     },
     async ({ username, response_format }) => {
       try {
-        const userData = await getClient().getUserData(username);
+        const client = getClient();
+        const userData = await client.getUserData(username);
+        // Friends = people the user is following
+        const following = await client.getFollowing(userData.id);
 
-        // Bug fix: handle missing points_ranking_data gracefully
-        const langValues = Object.values(userData.language_data);
-        const firstLangWithRanking = langValues.find(
-          (v) => v.points_ranking_data && v.points_ranking_data.length > 0,
-        );
-
-        if (!firstLangWithRanking?.points_ranking_data) {
+        if (following.length === 0) {
           return { content: [{ type: 'text', text: 'No friends found.' }] };
         }
 
-        const friends = firstLangWithRanking.points_ranking_data.map(
-          (friend) => ({
-            username: friend.username,
-            id: friend.id,
-            points: friend.points_data.total,
-            languages: friend.points_data.languages.map(
-              (l) => l.language_string,
-            ),
-          }),
-        );
-
-        if (friends.length === 0) {
-          return { content: [{ type: 'text', text: 'No friends found.' }] };
-        }
+        const friends = following.map((f) => ({
+          username: f.username,
+          id: f.userId,
+          points: f.totalXp,
+          display_name: f.displayName,
+        }));
 
         if (response_format === 'json') {
           return {
@@ -380,9 +369,9 @@ export function registerAccountTools(server: McpServer): void {
 
         const lines = ['# Duolingo Friends', ''];
         for (const friend of friends) {
-          const langs = friend.languages.join(', ');
+          const name = friend.display_name || friend.username;
           lines.push(
-            `- **${friend.username}** — ${friend.points} pts | Languages: ${langs || 'None'}`,
+            `- **${name}** (@${friend.username}) — ${friend.points} XP`,
           );
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };
@@ -493,51 +482,11 @@ export function registerAccountTools(server: McpServer): void {
     async ({ username, unit, response_format }) => {
       try {
         const client = getClient();
-        const before = String(Date.now() / 1000);
-        const leaderboardData = await client.getLeaderboard(unit, before);
-
-        const ranking = leaderboardData.ranking ?? {};
-        if (Object.keys(ranking).length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `No leaderboard data found for unit '${unit}'.`,
-              },
-            ],
-          };
-        }
-
-        // Bug fix: handle missing points_ranking_data gracefully
         const userData = await client.getUserData(username);
-        const langValues = Object.values(userData.language_data);
-        const firstLangWithRanking = langValues.find(
-          (v) => v.points_ranking_data && v.points_ranking_data.length > 0,
-        );
+        // Leaderboard = people the user is following, sorted by XP for the unit
+        const following = await client.getFollowing(userData.id);
 
-        const friendsById = new Map<number, string>();
-        if (firstLangWithRanking?.points_ranking_data) {
-          for (const friend of firstLangWithRanking.points_ranking_data) {
-            friendsById.set(friend.id, friend.username);
-          }
-        }
-
-        const data = Object.entries(ranking)
-          .map(([uid, points]) => {
-            const id = parseInt(uid, 10);
-            const friendUsername = friendsById.get(id);
-            if (!friendUsername) return null;
-            return {
-              unit,
-              id,
-              points: parseInt(points, 10),
-              username: friendUsername,
-            };
-          })
-          .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
-          .sort((a, b) => b.points - a.points);
-
-        if (data.length === 0) {
+        if (following.length === 0) {
           return {
             content: [
               {
@@ -547,6 +496,16 @@ export function registerAccountTools(server: McpServer): void {
             ],
           };
         }
+
+        const data = following
+          .map((f) => ({
+            unit,
+            id: f.userId,
+            username: f.username,
+            display_name: f.displayName,
+            points: unit === 'week' ? (f.userScore?.score ?? 0) : f.totalXp,
+          }))
+          .sort((a, b) => b.points - a.points);
 
         if (response_format === 'json') {
           return {
@@ -559,8 +518,9 @@ export function registerAccountTools(server: McpServer): void {
           '',
         ];
         for (const [rank, entry] of data.entries()) {
+          const name = entry.display_name || entry.username;
           lines.push(
-            `${rank + 1}. **${entry.username}** — ${entry.points} pts`,
+            `${rank + 1}. **${name}** (@${entry.username}) — ${entry.points} pts`,
           );
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };

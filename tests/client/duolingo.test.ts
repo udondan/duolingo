@@ -21,16 +21,10 @@ const MOCK_USER_DATA: DuolingoUserData = {
   username: 'testuser',
   bio: 'Test bio',
   id: 12345,
-  num_following: 5,
   cohort: 1,
-  num_followers: 10,
   learning_language_string: 'French',
-  created: '2020-01-01',
-  contribution_points: 100,
-  gplus_id: '',
-  twitter_id: '',
+  creation_date: '2020-01-01T00:00:00',
   admin: false,
-  invites_left: 3,
   location: 'Berlin',
   fullname: 'Test User',
   avatar: 'https://example.com/avatar.jpg',
@@ -40,8 +34,8 @@ const MOCK_USER_DATA: DuolingoUserData = {
   streak_extended_today: true,
   notify_comment: true,
   deactivated: false,
-  is_follower_by: false,
-  is_following: false,
+  tracking_properties: { num_followers: 10, num_following: 5 },
+  dict_base_url: 'http://d2.duolingo.com/',
   calendar: [{ datetime: 1700000000, improvement: 10 }],
   languages: [
     {
@@ -62,7 +56,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
       num_skills_learned: 15,
       level_percent: 40,
       level_points: 500,
-      points_rank: 3,
       next_level: 6,
       level_left: 300,
       language: 'fr',
@@ -70,16 +63,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
       fluency_score: 0.35,
       level: 5,
       calendar: [{ datetime: 1700000000, improvement: 10 }],
-      points_ranking_data: [
-        {
-          username: 'friend1',
-          id: 99001,
-          points_data: {
-            total: 2000,
-            languages: [{ language_string: 'French' }],
-          },
-        },
-      ],
       skills: [
         {
           id: 'skill-1',
@@ -267,39 +250,41 @@ describe('DuolingoClient', () => {
   });
 
   // -------------------------------------------------------------------------
-  // getVocabularyOverview
+  // getFollowing / getFollowers
   // -------------------------------------------------------------------------
-  describe('getVocabularyOverview', () => {
-    it('fetches vocabulary overview', async () => {
-      const mockVocab = {
-        language_string: 'French',
-        learning_language: 'fr',
-        from_language: 'en',
-        vocab_overview: [
-          {
-            word_string: 'bonjour',
-            normalized_string: 'bonjour',
-            pos: 'Noun',
-            strength: 0.9,
-            strength_bars: 4,
-            skill: 'Basics 1',
-            last_practiced: '2024-01-01',
-            gender: null,
-            infinitive: null,
-            lexeme_id: 'lex-1',
-            related_lexemes: [],
-          },
-        ],
+  describe('getFollowing', () => {
+    it('fetches the list of users the authenticated user follows', async () => {
+      const mockFollowing = {
+        following: {
+          users: [
+            {
+              userId: 99001,
+              username: 'friend1',
+              displayName: 'Friend One',
+              picture: '//example.com/avatar.jpg',
+              totalXp: 2000,
+              isFollowing: true,
+              isFollowedBy: false,
+              hasSubscription: false,
+              userScore: { courseId: 'DUOLINGO_FR_EN', score: 150 },
+            },
+          ],
+          totalUsers: 1,
+          cursor: null,
+        },
       };
       const client = makeClientWithMockHttp(
         new Map([
-          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
-          ['/vocabulary/overview', { status: 200, data: mockVocab }],
+          [
+            '/friends/users/12345/following',
+            { status: 200, data: mockFollowing },
+          ],
         ]),
       );
-      const vocab = await client.getVocabularyOverview();
-      expect(vocab.language_string).toBe('French');
-      expect(vocab.vocab_overview).toHaveLength(1);
+      const users = await client.getFollowing(12345);
+      expect(users).toHaveLength(1);
+      expect(users[0]!.username).toBe('friend1');
+      expect(users[0]!.totalXp).toBe(2000);
     });
   });
 

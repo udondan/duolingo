@@ -8,22 +8,6 @@ export interface DuolingoCalendarEntry {
   improvement: number;
 }
 
-export interface DuolingoFriendLanguage {
-  language_string: string;
-  [key: string]: unknown;
-}
-
-export interface DuolingoFriendPointsData {
-  total: number;
-  languages: DuolingoFriendLanguage[];
-}
-
-export interface DuolingoFriend {
-  username: string;
-  id: number;
-  points_data: DuolingoFriendPointsData;
-}
-
 export interface DuolingoSkill {
   id: string;
   name: string;
@@ -44,8 +28,6 @@ export interface DuolingoLanguageData {
   num_skills_learned: number;
   level_percent: number;
   level_points: number;
-  /** May be absent in current API responses. */
-  points_rank?: number;
   next_level: number;
   level_left: number;
   language: string;
@@ -53,8 +35,6 @@ export interface DuolingoLanguageData {
   fluency_score: number | null;
   level: number;
   calendar: DuolingoCalendarEntry[];
-  /** Absent in current API — was used for friends/leaderboard. */
-  points_ranking_data?: DuolingoFriend[] | null;
   skills: DuolingoSkill[];
   [key: string]: unknown;
 }
@@ -82,25 +62,17 @@ export interface DuolingoUserData {
   username: string;
   bio: string;
   id: number;
-  /** Moved to tracking_properties.num_following in current API. */
-  num_following?: number;
   cohort: number | null;
-  /** Moved to tracking_properties.num_followers in current API. */
-  num_followers?: number;
   learning_language_string: string;
-  /** Returns human-readable relative text in current API. Use creation_date instead. */
+  /** Returns human-readable relative text. Use creation_date for ISO string. */
   created?: string;
   /** ISO date string e.g. "2025-08-07T17:13:57". */
   creation_date?: string;
   /** Unix ms timestamp. */
   created_dt?: number;
-  /** No longer present in current API. */
-  contribution_points?: number;
   gplus_id?: string;
   twitter_id?: string;
   admin: boolean;
-  /** No longer present in current API. */
-  invites_left?: number;
   location: string | null;
   fullname: string;
   avatar: string;
@@ -110,10 +82,6 @@ export interface DuolingoUserData {
   streak_extended_today: boolean;
   notify_comment: boolean;
   deactivated: boolean;
-  /** No longer present in current API. */
-  is_follower_by?: boolean;
-  /** No longer present in current API. */
-  is_following?: boolean;
   tts_base_url?: string;
   dict_base_url?: string;
   tracking_properties?: DuolingoTrackingProperties;
@@ -123,32 +91,11 @@ export interface DuolingoUserData {
   [key: string]: unknown;
 }
 
-export interface DuolingoVocabWord {
-  word_string: string;
-  normalized_string: string;
-  pos: string;
-  strength: number;
-  strength_bars: number;
-  skill: string;
-  last_practiced: string;
-  gender: string | null;
-  infinitive: string | null;
-  lexeme_id: string;
-  related_lexemes: string[];
-  [key: string]: unknown;
-}
-
-export interface DuolingoVocabOverview {
-  language_string: string;
-  learning_language: string;
-  from_language: string;
-  vocab_overview: DuolingoVocabWord[];
-}
-
 export interface DuolingoXpGain {
   skillId: string;
   xp: number;
   time: number;
+  eventType?: string | null;
 }
 
 export interface DuolingoStreakData {
@@ -164,6 +111,39 @@ export interface DuolingoDailyProgress {
 
 export interface DuolingoLeaderboardData {
   ranking: Record<string, string>;
+}
+
+/** A user entry from /2017-06-30/friends/users/{id}/following or /followers */
+export interface DuolingoFriendUser {
+  userId: number;
+  username: string;
+  displayName: string | null;
+  picture: string;
+  totalXp: number;
+  isFollowing: boolean;
+  isFollowedBy: boolean;
+  hasSubscription: boolean;
+  userScore?: {
+    courseId: string;
+    score: number | null;
+  };
+  [key: string]: unknown;
+}
+
+export interface DuolingoFollowingResponse {
+  following: {
+    users: DuolingoFriendUser[];
+    totalUsers: number;
+    cursor: string | null;
+  };
+}
+
+export interface DuolingoFollowersResponse {
+  followers: {
+    users: DuolingoFriendUser[];
+    totalUsers: number;
+    cursor: string | null;
+  };
 }
 
 export interface DuolingoShopItemRequest {
