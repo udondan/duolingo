@@ -406,9 +406,8 @@ export function registerAccountTools(server: McpServer): void {
       description:
         'Get the list of Duolingo users that a given user is following (their friends). ' +
         "Returns each friend's username, display name, and total XP. " +
-        'Works for any public user, not just the authenticated user.',
+        'Only works for the authenticated user.',
       inputSchema: {
-        username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
       },
       annotations: {
@@ -418,11 +417,11 @@ export function registerAccountTools(server: McpServer): void {
         openWorldHint: true,
       },
     },
-    async ({ username, response_format }) => {
+    async ({ response_format }) => {
       try {
         const client = getClient();
-        const userData = await client.getUserData(username);
-        // Friends = people the user is following
+        const userData = await client.getUserData();
+        // Friends = people the authenticated user is following
         const following = await client.getFollowing(userData.id);
 
         if (following.length === 0) {
@@ -545,9 +544,8 @@ export function registerAccountTools(server: McpServer): void {
       description:
         "Get the XP leaderboard for a Duolingo user's friends. " +
         'Returns the users they follow, sorted by XP for the given time unit (week or month). ' +
-        'Works for any public user, not just the authenticated user.',
+        'Only works for the authenticated user.',
       inputSchema: {
-        username: UsernameFieldSchema,
         unit: z
           .enum(['week', 'month'])
           .default('week')
@@ -561,11 +559,11 @@ export function registerAccountTools(server: McpServer): void {
         openWorldHint: true,
       },
     },
-    async ({ username, unit, response_format }) => {
+    async ({ unit, response_format }) => {
       try {
         const client = getClient();
-        const userData = await client.getUserData(username);
-        // Leaderboard = people the user is following, sorted by XP for the unit
+        const userData = await client.getUserData();
+        // Leaderboard = people the authenticated user is following, sorted by XP
         const following = await client.getFollowing(userData.id);
 
         if (following.length === 0) {

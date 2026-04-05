@@ -232,7 +232,6 @@ describe('MCP Server: tool discovery', () => {
       buildAudioUrl: vi
         .fn()
         .mockResolvedValue('https://cdn.example.com/audio.mp3'),
-      getTranslations: vi.fn().mockResolvedValue({ hola: ['hello'] }),
     } as unknown as DuolingoClient);
 
     ({ client, cleanup } = await createMcpPair());
@@ -271,7 +270,6 @@ describe('MCP Server: tool discovery', () => {
       'duolingo_get_shop_items',
       'duolingo_get_streak_goal',
       'duolingo_get_streak_info',
-      'duolingo_get_translations',
       'duolingo_get_unknown_topics',
       'duolingo_get_user_info',
     ].sort();
@@ -364,7 +362,6 @@ describe('MCP Server: tool execution via wire protocol', () => {
         .mockResolvedValue(
           'https://d7mj4aqfscim2.cloudfront.net/tts/es/token/hola',
         ),
-      getTranslations: vi.fn().mockResolvedValue({ hola: ['hello', 'hi'] }),
     } as unknown as DuolingoClient);
 
     ({ client, cleanup } = await createMcpPair());
@@ -460,15 +457,6 @@ describe('MCP Server: tool execution via wire protocol', () => {
     });
     expect(result).toContain('cloudfront.net');
     expect(result).toContain('hola');
-  });
-
-  it('duolingo_get_translations returns translations', async () => {
-    const result = await callTool(client, 'duolingo_get_translations', {
-      words: ['hola'],
-      source: 'es',
-      target: 'en',
-    });
-    expect(result).toContain('hello');
   });
 
   it('duolingo_get_language_from_abbr returns full name', async () => {

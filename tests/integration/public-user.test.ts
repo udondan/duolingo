@@ -13,11 +13,14 @@
  *   DUOLINGO_JWT           — JWT token for the authenticated user
  *   DUOLINGO_TEST_USERNAME — a different public Duolingo account to query
  *
- * Tools with username support (11 total):
- *   account: get_user_info, get_streak_info, get_languages, get_friends,
- *            get_calendar, get_leaderboard, get_courses
- *   language: get_language_details, get_language_progress
+ * Tools with username support (8 total):
+ *   account: get_user_info, get_streak_info, get_languages, get_calendar, get_courses
+ *   language: get_language_details
  *   shop: get_language_from_abbr, get_abbreviation_of
+ *
+ * Note: get_friends, get_leaderboard, and get_language_progress do NOT support
+ * username — the Duolingo API requires authentication for friends/leaderboard,
+ * and language_data only contains the user's currently active language.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -202,47 +205,6 @@ describe('duolingo_get_languages', () => {
 });
 
 // ---------------------------------------------------------------------------
-// duolingo_get_friends
-// ---------------------------------------------------------------------------
-
-describe('duolingo_get_friends', () => {
-  it('returns friends for the authenticated user (no username)', async () => {
-    if (SKIP) return;
-
-    const text = await callTool(server, 'duolingo_get_friends', {
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>[];
-
-    expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      const friend = data[0];
-      expect(typeof friend.username).toBe('string');
-      expect(typeof friend.display_name).toBe('string');
-      expect(typeof friend.points).toBe('number');
-    }
-  });
-
-  it('returns friends for the test user (with username)', async () => {
-    if (SKIP) return;
-
-    const text = await callTool(server, 'duolingo_get_friends', {
-      username: TEST_USERNAME,
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>[];
-
-    expect(Array.isArray(data)).toBe(true);
-    expect(data.length).toBeGreaterThan(0);
-    for (const friend of data) {
-      expect(typeof friend.username).toBe('string');
-      expect(typeof friend.display_name).toBe('string');
-      expect(typeof friend.points).toBe('number');
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
 // duolingo_get_calendar
 // ---------------------------------------------------------------------------
 
@@ -300,58 +262,6 @@ describe('duolingo_get_calendar', () => {
     });
     // May return empty array if no activity for that language, but must be valid JSON array
     const data = parseJson(text);
-    expect(Array.isArray(data)).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// duolingo_get_leaderboard
-// ---------------------------------------------------------------------------
-
-describe('duolingo_get_leaderboard', () => {
-  it('returns leaderboard for the authenticated user (no username)', async () => {
-    if (SKIP) return;
-
-    const text = await callTool(server, 'duolingo_get_leaderboard', {
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>[];
-
-    expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      const entry = data[0];
-      expect(typeof entry.username).toBe('string');
-      expect(typeof entry.points).toBe('number');
-    }
-  });
-
-  it('returns leaderboard for the test user (with username)', async () => {
-    if (SKIP) return;
-
-    const text = await callTool(server, 'duolingo_get_leaderboard', {
-      username: TEST_USERNAME,
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>[];
-
-    expect(Array.isArray(data)).toBe(true);
-    expect(data.length).toBeGreaterThan(0);
-    for (const entry of data) {
-      expect(typeof entry.username).toBe('string');
-      expect(typeof entry.points).toBe('number');
-    }
-  });
-
-  it('returns monthly leaderboard for the test user', async () => {
-    if (SKIP) return;
-
-    const text = await callTool(server, 'duolingo_get_leaderboard', {
-      username: TEST_USERNAME,
-      unit: 'month',
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>[];
-
     expect(Array.isArray(data)).toBe(true);
   });
 });
@@ -468,60 +378,6 @@ describe('duolingo_get_language_details', () => {
     expect(typeof data.points).toBe('number');
     expect(typeof data.streak).toBe('number');
     expect(typeof data.current_learning).toBe('boolean');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// duolingo_get_language_progress
-// ---------------------------------------------------------------------------
-
-describe('duolingo_get_language_progress', () => {
-  it('returns language progress for the authenticated user (no username)', async () => {
-    if (SKIP) return;
-
-    // Get the authenticated user's current language abbreviation
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      abbreviations: true,
-      response_format: 'json',
-    });
-    const langs = parseJson(langsText) as string[];
-    if (langs.length === 0) return;
-
-    const text = await callTool(server, 'duolingo_get_language_progress', {
-      language_abbr: langs[0],
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>;
-
-    expect(typeof data.level).toBe('number');
-    expect(typeof data.points).toBe('number');
-    expect(typeof data.fluency_score).toBe('number');
-    expect(typeof data.num_skills_learned).toBe('number');
-  });
-
-  it('returns language progress for the test user (with username)', async () => {
-    if (SKIP) return;
-
-    // Get the test user's language abbreviations
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      username: TEST_USERNAME,
-      abbreviations: true,
-      response_format: 'json',
-    });
-    const langs = parseJson(langsText) as string[];
-    if (langs.length === 0) return;
-
-    const text = await callTool(server, 'duolingo_get_language_progress', {
-      language_abbr: langs[0],
-      username: TEST_USERNAME,
-      response_format: 'json',
-    });
-    const data = parseJson(text) as Record<string, unknown>;
-
-    expect(typeof data.level).toBe('number');
-    expect(typeof data.points).toBe('number');
-    expect(typeof data.fluency_score).toBe('number');
-    expect(typeof data.num_skills_learned).toBe('number');
   });
 });
 

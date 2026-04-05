@@ -4,7 +4,7 @@
  * Tools: get_language_details, get_language_progress, get_known_topics,
  *        get_unknown_topics, get_golden_topics, get_reviewable_topics,
  *        get_known_words, get_learned_skills,
- *        get_translations, get_language_voices, get_audio_url
+ *        get_language_voices, get_audio_url
  */
 
 import { z } from 'zod';
@@ -112,7 +112,6 @@ export function registerLanguageTools(server: McpServer): void {
         'Returns level, percent to next level, points rank, fluency score, skills learned, and more.',
       inputSchema: {
         language_abbr: LanguageAbbrSchema,
-        username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
       },
       annotations: {
@@ -122,16 +121,16 @@ export function registerLanguageTools(server: McpServer): void {
         openWorldHint: true,
       },
     },
-    async ({ language_abbr, username, response_format }) => {
+    async ({ language_abbr, response_format }) => {
       try {
-        const userData = await getClient().getUserData(username);
+        const userData = await getClient().getUserData();
         const langData = userData.language_data[language_abbr];
         if (!langData) {
           return {
             content: [
               {
                 type: 'text',
-                text: `Language '${language_abbr}' not found. Make sure the user is learning this language.`,
+                text: `Language '${language_abbr}' not found. Make sure you are learning this language.`,
               },
             ],
           };
@@ -544,94 +543,6 @@ export function registerLanguageTools(server: McpServer): void {
           lines.push(
             `- **${skill.title}** — Strength: ${strengthPct}% | Progress: ${Math.round(skill.progress_percent)}%`,
           );
-        }
-        return { content: [{ type: 'text', text: lines.join('\n') }] };
-      } catch (err) {
-        return { content: [{ type: 'text', text: handleError(err) }] };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // Get Translations
-  // -------------------------------------------------------------------------
-  server.registerTool(
-    'duolingo_get_translations',
-    {
-      title: 'Get Duolingo Word Translations',
-      description:
-        'Get translations for a list of words between two languages. ' +
-        'Returns a dictionary mapping each word to its list of possible translations. ' +
-        "Translations are fetched from Duolingo's dictionary API.",
-      inputSchema: {
-        words: z
-          .array(z.string())
-          .min(1)
-          .describe("List of words to translate (e.g. ['bonjour', 'merci'])."),
-        source: z
-          .string()
-          .optional()
-          .describe(
-            "Source language abbreviation (e.g. 'fr'). Defaults to user's UI language.",
-          ),
-        target: z
-          .string()
-          .optional()
-          .describe(
-            "Target language abbreviation (e.g. 'en'). Defaults to user's current learning language.",
-          ),
-        response_format: ResponseFormatSchema,
-      },
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
-    },
-    async ({ words, source, target, response_format }) => {
-      try {
-        const client = getClient();
-
-        // Resolve defaults from user data
-        let resolvedSource = source;
-        let resolvedTarget = target;
-        if (resolvedSource === undefined || resolvedTarget === undefined) {
-          const userData = await client.getUserData();
-          resolvedSource ??= userData.ui_language;
-          if (resolvedTarget === undefined) {
-            const langKeys = Object.keys(userData.language_data);
-            resolvedTarget = langKeys[0] ?? 'en';
-          }
-        }
-
-        const translations = await client.getTranslations(
-          words,
-          resolvedSource,
-          resolvedTarget,
-        );
-
-        if (Object.keys(translations).length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No translations found.' }],
-          };
-        }
-
-        if (response_format === 'json') {
-          return {
-            content: [
-              { type: 'text', text: JSON.stringify(translations, null, 2) },
-            ],
-          };
-        }
-
-        const lines = ['# Translations', ''];
-        for (const [word, trans] of Object.entries(translations)) {
-          const transStr =
-            Array.isArray(trans) && trans.length > 0
-              ? trans.join(', ')
-              : 'No translation found';
-          lines.push(`- **${word}**: ${transStr}`);
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {

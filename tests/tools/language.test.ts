@@ -106,9 +106,6 @@ describe('Language Tools', () => {
     server = new McpServer({ name: 'test', version: '1.0.0' });
     mockClient = {
       getUserData: vi.fn().mockResolvedValue(MOCK_USER_DATA),
-      getTranslations: vi
-        .fn()
-        .mockResolvedValue({ bonjour: ['hello', 'good morning'] }),
       getLanguageVoices: vi.fn().mockResolvedValue(['default', 'mathieu']),
       buildAudioUrl: vi
         .fn()
@@ -308,29 +305,6 @@ describe('Language Tools', () => {
       const parsed = JSON.parse(result);
       expect(parsed).toHaveLength(2);
       expect(parsed[0].title).toBe('Basics 1');
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // duolingo_get_translations
-  // -------------------------------------------------------------------------
-  describe('duolingo_get_translations', () => {
-    it('returns markdown translations', async () => {
-      const result = await callTool(server, 'duolingo_get_translations', {
-        words: ['bonjour'],
-      });
-      expect(result).toContain('# Translations');
-      expect(result).toContain('bonjour');
-      expect(result).toContain('hello');
-    });
-
-    it('returns JSON translations', async () => {
-      const result = await callTool(server, 'duolingo_get_translations', {
-        words: ['bonjour'],
-        response_format: 'json',
-      });
-      const parsed = JSON.parse(result);
-      expect(parsed.bonjour).toContain('hello');
     });
   });
 
