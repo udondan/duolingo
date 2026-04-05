@@ -121,8 +121,17 @@ crashes when `points_ranking_data` is absent, broken leaderboard, etc.). The rew
 
 ### Key Decisions
 - Integration tests use `it.skipIf` pattern to skip gracefully when credentials are absent
-- Tests document broken endpoints rather than failing on them, so CI can still pass
-- All 116 tests pass (87 unit + 29 integration)
+- All 120 tests pass (89 unit + 31 integration)
+
+### API Fixes Applied
+- `get_user_info`: `num_followers`/`num_following` now read from `tracking_properties`; `created` replaced by `creation_date` (ISO string)
+- `get_settings`: `is_follower_by`/`is_following` included only when present in API response
+- `get_language_voices`: Replaced `duo.tts_multi_voices` homepage scraping with session API voice discovery (GLOBAL_PRACTICE session → extract voice names from TTS CDN URLs)
+- `get_audio_url`: Replaced broken voice URL dictionary with direct `buildAudioUrl` using `tts_base_url` from user data; URL format: `{ttsBaseUrl}tts/{lang}/{voice}/token/{word}`
+- `get_language_progress`: `points_rank` shown only when present in API response
+- `getTranslations`: Now reads `dict_base_url` from user data (upgrades http→https automatically)
+- `getSession`: SKILL_PRACTICE no longer supported; now delegates to GLOBAL_PRACTICE
+- Types updated: all formerly-required fields that are now optional marked with `?`
 
 
 

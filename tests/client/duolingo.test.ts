@@ -330,8 +330,14 @@ describe('DuolingoClient', () => {
         bonjour: ['hello', 'good morning'],
         merci: ['thank you', 'thanks'],
       };
+      // getTranslations now calls getUserData first to get dict_base_url
+      const userDataWithDict = {
+        ...MOCK_USER_DATA,
+        dict_base_url: 'http://d2.duolingo.com/',
+      };
       const client = makeClientWithMockHttp(
         new Map([
+          ['/users/testuser', { status: 200, data: userDataWithDict }],
           ['dictionary/hints', { status: 200, data: mockTranslations }],
         ]),
       );
@@ -345,8 +351,15 @@ describe('DuolingoClient', () => {
     });
 
     it('segments large word lists and makes multiple requests', async () => {
+      const userDataWithDict = {
+        ...MOCK_USER_DATA,
+        dict_base_url: 'http://d2.duolingo.com/',
+      };
       const client = makeClientWithMockHttp(
-        new Map([['dictionary/hints', { status: 200, data: {} }]]),
+        new Map([
+          ['/users/testuser', { status: 200, data: userDataWithDict }],
+          ['dictionary/hints', { status: 200, data: {} }],
+        ]),
       );
       const mockGet = (
         client as unknown as { http: { get: ReturnType<typeof vi.fn> } }
@@ -356,8 +369,8 @@ describe('DuolingoClient', () => {
       const words = Array.from({ length: 2500 }, (_, i) => `word${i}`);
       await client.getTranslations(words, 'fr', 'en');
 
-      // 2500 words splits into 3 segments (limit is 2000 words per segment)
-      expect(mockGet).toHaveBeenCalledTimes(3);
+      // 1 call for getUserData + 3 calls for segments (2500 words → 3 segments)
+      expect(mockGet).toHaveBeenCalledTimes(4);
     });
   });
 

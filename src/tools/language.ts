@@ -162,6 +162,7 @@ export function registerLanguageTools(server: McpServer): void {
           level_left: langData.level_left,
           next_level: langData.next_level,
           points: langData.points,
+          // points_rank is absent in the current API response
           points_rank: langData.points_rank,
           streak: langData.streak,
           num_skills_learned: langData.num_skills_learned,
@@ -182,7 +183,8 @@ export function registerLanguageTools(server: McpServer): void {
         lines.push(`- **Level Progress**: ${progress.level_percent}%`);
         lines.push(`- **Points to Next Level**: ${progress.level_left}`);
         lines.push(`- **Total Points**: ${progress.points}`);
-        lines.push(`- **Points Rank**: #${progress.points_rank}`);
+        if (progress.points_rank != null)
+          lines.push(`- **Points Rank**: #${progress.points_rank}`);
         lines.push(`- **Streak**: ${progress.streak} days`);
         lines.push(`- **Skills Learned**: ${progress.num_skills_learned}`);
         if (progress.fluency_score !== null) {
@@ -805,29 +807,11 @@ export function registerLanguageTools(server: McpServer): void {
           };
         }
 
-        const homepage = await client.getHomepage();
+        // Discover voices via the session API (duo.tts_multi_voices is no longer
+        // embedded in the homepage — voices are now discovered from session TTS URLs)
+        const voices = await client.getLanguageVoices(langAbbr);
 
-        // Parse duo.tts_multi_voices = {...}; from homepage JS
-        const match = homepage.match(/duo\.tts_multi_voices\s*=\s*(\{[^}]+\})/);
-        if (!match || !match[1]) {
-          return {
-            content: [{ type: 'text', text: 'No TTS voices found.' }],
-          };
-        }
-
-        let ttsVoices: Record<string, string[]>;
-        try {
-          ttsVoices = JSON.parse(match[1]) as Record<string, string[]>;
-        } catch {
-          return {
-            content: [
-              { type: 'text', text: 'Failed to parse TTS voice data.' },
-            ],
-          };
-        }
-
-        const rawVoices = ttsVoices[langAbbr];
-        if (!rawVoices || rawVoices.length === 0) {
+        if (voices.length === 0) {
           return {
             content: [
               {
@@ -837,11 +821,6 @@ export function registerLanguageTools(server: McpServer): void {
             ],
           };
         }
-
-        const voices = rawVoices.map((v) => {
-          if (v === langAbbr) return 'default';
-          return v.replace(`${langAbbr}/`, '');
-        });
 
         if (response_format === 'json') {
           return {
@@ -917,45 +896,30 @@ export function registerLanguageTools(server: McpServer): void {
           };
         }
 
-        const normalizedWord = word.toLowerCase();
-        const voiceDict = await client.getVoiceUrlDictionary(langAbbr);
-        const wordLinks = voiceDict.get(normalizedWord);
-
-        if (!wordLinks || wordLinks.size === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `No audio found for word '${word}'.`,
-              },
-            ],
-          };
-        }
-
-        const linkArray = [...wordLinks];
-
-        // If a specific voice is requested, find it
+        // If a specific voice is requested, build the URL directly.
+        // URL format: {ttsBaseUrl}tts/{lang}/{voice}/token/{word}
         if (voice) {
-          const voiceLink = linkArray.find((url) => url.includes(`/${voice}/`));
-          if (!voiceLink) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `No audio found for word '${word}' with voice '${voice}'.`,
-                },
-              ],
-            };
-          }
-          return { content: [{ type: 'text', text: voiceLink }] };
+          const url = await client.buildAudioUrl(word, langAbbr, voice);
+          return { content: [{ type: 'text', text: url }] };
         }
 
-        // Random or first
-        const url =
-          random && linkArray.length > 1
-            ? linkArray[Math.floor(Math.random() * linkArray.length)]!
-            : linkArray[0]!;
+        // If random voice is requested, discover available voices first.
+        if (random) {
+          const voices = await client.getLanguageVoices(langAbbr);
+          if (voices.length > 0) {
+            const selectedVoice =
+              voices[Math.floor(Math.random() * voices.length)]!;
+            const url = await client.buildAudioUrl(
+              word,
+              langAbbr,
+              selectedVoice,
+            );
+            return { content: [{ type: 'text', text: url }] };
+          }
+        }
 
+        // Fall back to the default (no-voice) URL
+        const url = await client.buildAudioUrl(word, langAbbr);
         return { content: [{ type: 'text', text: url }] };
       } catch (err) {
         return { content: [{ type: 'text', text: handleError(err) }] };

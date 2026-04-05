@@ -154,10 +154,17 @@ describe('Language Tools', () => {
       getTranslations: vi
         .fn()
         .mockResolvedValue({ bonjour: ['hello', 'good morning'] }),
-      getHomepage: vi
+      getLanguageVoices: vi.fn().mockResolvedValue(['default', 'mathieu']),
+      buildAudioUrl: vi
         .fn()
-        .mockResolvedValue(
-          'duo.tts_multi_voices = {"fr":["fr","fr/mathieu"]};',
+        .mockImplementation(
+          async (word: string, lang: string, voice?: string) => {
+            const base = 'https://d7mj4aqfscim2.cloudfront.net/';
+            if (voice) {
+              return `${base}tts/${lang}/${voice}/token/${word}`;
+            }
+            return `${base}tts/${lang}/token/${word}`;
+          },
         ),
       getVoiceUrlDictionary: vi
         .fn()
@@ -441,28 +448,51 @@ describe('Language Tools', () => {
       expect(parsed).toContain('default');
       expect(parsed).toContain('mathieu');
     });
+
+    it('returns message when no voices found', async () => {
+      vi.mocked(mockClient.getLanguageVoices!).mockResolvedValue([]);
+      const result = await callTool(server, 'duolingo_get_language_voices', {
+        language_abbr: 'fr',
+      });
+      expect(result).toContain("No voices found for language 'fr'");
+    });
   });
 
   // -------------------------------------------------------------------------
   // duolingo_get_audio_url
   // -------------------------------------------------------------------------
   describe('duolingo_get_audio_url', () => {
-    it('returns audio URL for a known word', async () => {
+    it('returns audio URL for a word with specific voice', async () => {
+      const result = await callTool(server, 'duolingo_get_audio_url', {
+        word: 'bonjour',
+        language_abbr: 'fr',
+        voice: 'mathieu',
+        random: false,
+      });
+      expect(result).toContain('d7mj4aqfscim2.cloudfront.net');
+      expect(result).toContain('mathieu');
+      expect(result).toContain('bonjour');
+    });
+
+    it('returns audio URL with random voice when voices are available', async () => {
+      const result = await callTool(server, 'duolingo_get_audio_url', {
+        word: 'bonjour',
+        language_abbr: 'fr',
+        random: true,
+      });
+      expect(result).toContain('d7mj4aqfscim2.cloudfront.net');
+      expect(result).toContain('bonjour');
+    });
+
+    it('returns default audio URL when no voices found and random=false', async () => {
+      vi.mocked(mockClient.getLanguageVoices!).mockResolvedValue([]);
       const result = await callTool(server, 'duolingo_get_audio_url', {
         word: 'bonjour',
         language_abbr: 'fr',
         random: false,
       });
-      expect(result).toContain('https://cdn.example.com/fr/bonjour.mp3');
-    });
-
-    it('returns not found message for unknown word', async () => {
-      vi.mocked(mockClient.getVoiceUrlDictionary!).mockResolvedValue(new Map());
-      const result = await callTool(server, 'duolingo_get_audio_url', {
-        word: 'xyz',
-        language_abbr: 'fr',
-      });
-      expect(result).toContain("No audio found for word 'xyz'");
+      expect(result).toContain('d7mj4aqfscim2.cloudfront.net');
+      expect(result).toContain('bonjour');
     });
   });
 });

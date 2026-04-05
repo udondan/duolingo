@@ -36,6 +36,8 @@ export function registerAccountTools(server: McpServer): void {
     async ({ username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
+        // num_followers/num_following moved to tracking_properties in current API
+        const tp = userData.tracking_properties ?? {};
         const info = {
           username: userData.username,
           fullname: userData.fullname,
@@ -43,15 +45,14 @@ export function registerAccountTools(server: McpServer): void {
           location: userData.location,
           avatar: userData.avatar,
           id: userData.id,
-          num_followers: userData.num_followers,
-          num_following: userData.num_following,
+          num_followers: tp['num_followers'] ?? userData.num_followers,
+          num_following: tp['num_following'] ?? userData.num_following,
           learning_language_string: userData.learning_language_string,
           ui_language: userData.ui_language,
           admin: userData.admin,
           cohort: userData.cohort,
-          contribution_points: userData.contribution_points,
-          created: userData.created,
-          invites_left: userData.invites_left,
+          // creation_date is an ISO string; created is a human-readable relative string
+          created: userData.creation_date ?? userData.created,
         };
 
         if (response_format === 'json') {
@@ -66,9 +67,10 @@ export function registerAccountTools(server: McpServer): void {
         if (info.location) lines.push(`- **Location**: ${info.location}`);
         lines.push(`- **Learning**: ${info.learning_language_string || 'N/A'}`);
         lines.push(`- **UI Language**: ${info.ui_language || 'N/A'}`);
-        lines.push(`- **Followers**: ${info.num_followers}`);
-        lines.push(`- **Following**: ${info.num_following}`);
-        lines.push(`- **Contribution Points**: ${info.contribution_points}`);
+        if (info.num_followers != null)
+          lines.push(`- **Followers**: ${info.num_followers}`);
+        if (info.num_following != null)
+          lines.push(`- **Following**: ${info.num_following}`);
         lines.push(`- **Member Since**: ${info.created || 'N/A'}`);
         if (info.avatar) lines.push(`- **Avatar**: ${info.avatar}`);
 
@@ -100,12 +102,17 @@ export function registerAccountTools(server: McpServer): void {
     async ({ response_format }) => {
       try {
         const userData = await getClient().getUserData();
-        const settings = {
+        // is_follower_by / is_following are no longer in the API response;
+        // notify_comment and deactivated are still present.
+        const settings: Record<string, unknown> = {
           notify_comment: userData.notify_comment,
           deactivated: userData.deactivated,
-          is_follower_by: userData.is_follower_by,
-          is_following: userData.is_following,
         };
+        // Include social flags only when the API returns them
+        if (userData.is_follower_by !== undefined)
+          settings['is_follower_by'] = userData.is_follower_by;
+        if (userData.is_following !== undefined)
+          settings['is_following'] = userData.is_following;
 
         if (response_format === 'json') {
           return {

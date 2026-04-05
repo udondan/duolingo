@@ -327,31 +327,63 @@ describe('Live API: getTranslations', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getHomepage — TTS voice discovery (known broken)
+// getLanguageVoices — TTS voice discovery via session API
 // ---------------------------------------------------------------------------
 
-describe('Live API: getHomepage (TTS voices)', () => {
-  it('homepage no longer contains duo.tts_multi_voices (known broken)', async () => {
+describe('Live API: getLanguageVoices (TTS voices via session API)', () => {
+  it('discovers voice names for the current learning language', async () => {
     if (skipIfNoCredentials()) return;
 
-    const html = await client.getHomepage();
+    const userData = await client.getUserData();
+    const langKeys = Object.keys(userData.language_data);
+    if (langKeys.length === 0) return;
 
-    // The homepage should return HTML
-    expect(typeof html).toBe('string');
-    expect(html.length).toBeGreaterThan(0);
+    const langAbbr = langKeys[0]!;
+    const voices = await client.getLanguageVoices(langAbbr);
 
-    // Check if the TTS voice data is present
-    const hasTtsVoices = html.includes('duo.tts_multi_voices');
+    // Should return an array (may be empty if session returns no TTS URLs)
+    expect(Array.isArray(voices)).toBe(true);
 
-    if (!hasTtsVoices) {
-      console.warn(
-        'KNOWN ISSUE: duo.tts_multi_voices not found in homepage HTML. ' +
-          'TTS voice discovery is broken.',
-      );
+    if (voices.length > 0) {
+      // Voice names should be non-empty strings
+      for (const voice of voices) {
+        expect(typeof voice).toBe('string');
+        expect(voice.length).toBeGreaterThan(0);
+      }
     }
+  });
 
-    // Document the current state (may be true or false)
-    expect(typeof hasTtsVoices).toBe('boolean');
+  it('buildAudioUrl returns a valid CDN URL', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const langKeys = Object.keys(userData.language_data);
+    if (langKeys.length === 0) return;
+
+    const langAbbr = langKeys[0]!;
+    const url = await client.buildAudioUrl('hola', langAbbr);
+
+    expect(typeof url).toBe('string');
+    expect(url).toContain('cloudfront.net');
+    expect(url).toContain('hola');
+  });
+
+  it('buildAudioUrl with voice returns voice-specific URL', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const langKeys = Object.keys(userData.language_data);
+    if (langKeys.length === 0) return;
+
+    const langAbbr = langKeys[0]!;
+    const voices = await client.getLanguageVoices(langAbbr);
+    if (voices.length === 0) return;
+
+    const voice = voices[0]!;
+    const url = await client.buildAudioUrl('hola', langAbbr, voice);
+
+    expect(url).toContain(voice);
+    expect(url).toContain('hola');
   });
 });
 
@@ -499,33 +531,26 @@ describe('Live API: Language data completeness', () => {
 // ---------------------------------------------------------------------------
 
 describe('Live API: Known field regressions', () => {
-  it('num_followers is NOT present in current API response', async () => {
+  it('num_followers/num_following are in tracking_properties (not top-level)', async () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
 
-    // These fields were present in the old API but are now missing.
-    // This test documents the regression so we know what's broken.
-    const missingFields: string[] = [];
+    // num_followers/num_following moved to tracking_properties in current API
+    expect(data.num_followers).toBeUndefined(); // not at top level
+    expect(data.num_following).toBeUndefined(); // not at top level
 
-    if (data.num_followers === undefined) missingFields.push('num_followers');
-    if (data.num_following === undefined) missingFields.push('num_following');
-    if (data.contribution_points === undefined)
-      missingFields.push('contribution_points');
-    if (data.is_follower_by === undefined) missingFields.push('is_follower_by');
-    if (data.is_following === undefined) missingFields.push('is_following');
-    if (data.invites_left === undefined) missingFields.push('invites_left');
+    // But they ARE in tracking_properties
+    const tp = data.tracking_properties ?? {};
+    expect(typeof tp['num_followers']).toBe('number');
+    expect(typeof tp['num_following']).toBe('number');
 
-    if (missingFields.length > 0) {
+    // contribution_points is no longer in the API
+    if (data.contribution_points === undefined) {
       console.warn(
-        `KNOWN REGRESSION: These fields are missing from the API: ${missingFields.join(', ')}`,
+        'KNOWN: contribution_points is missing from the API (no replacement found)',
       );
     }
-
-    // Document the current state — these fields are expected to be missing
-    expect(data.num_followers).toBeUndefined();
-    expect(data.num_following).toBeUndefined();
-    expect(data.contribution_points).toBeUndefined();
   });
 
   it('points_ranking_data is NOT present in current API response', async () => {
@@ -567,23 +592,23 @@ describe('Live API: Known field regressions', () => {
     expect(langData.points_rank).toBeUndefined();
   });
 
-  it('created field contains HTML/text instead of a date string', async () => {
+  it('created field contains human-readable text; use creation_date instead', async () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
 
-    // The 'created' field in the current API returns a human-readable
-    // relative time string (e.g. "v. 8 Monaten") wrapped in whitespace,
-    // not an ISO date string.
+    // The 'created' field returns a human-readable relative string (e.g. "v. 8 Monaten")
+    // The correct ISO date is in 'creation_date'
     if (data.created && data.created.includes('\n')) {
       console.warn(
-        'KNOWN REGRESSION: created field contains whitespace/HTML instead of ISO date. ' +
-          `Value: ${JSON.stringify(data.created)}`,
+        'KNOWN: created field contains whitespace/relative text. ' +
+          'Use creation_date for ISO date string.',
       );
     }
 
-    // Document the current state
-    expect(typeof data.created).toBe('string');
+    // creation_date should be a proper ISO date string
+    expect(typeof data.creation_date).toBe('string');
+    expect(data.creation_date).toMatch(/^\d{4}-\d{2}-\d{2}/);
   });
 });
 

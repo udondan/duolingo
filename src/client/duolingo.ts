@@ -28,7 +28,12 @@ const USER_AGENT =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36';
 
 const BASE_URL = 'https://www.duolingo.com';
-const DICT_BASE_URL = 'https://d2.duolingo.com';
+
+/**
+ * Fallback TTS CDN base URL used when the user data does not provide one.
+ * The actual URL is returned in the /users/<username> response as `tts_base_url`.
+ */
+const FALLBACK_TTS_BASE_URL = 'https://d7mj4aqfscim2.cloudfront.net/';
 
 /** Maximum words per translation request (Duolingo API limit). */
 const TRANSLATION_WORD_COUNT_LIMIT = 2000;
@@ -43,8 +48,11 @@ export class DuolingoClient {
   /** Cache of user data keyed by username. */
   private readonly userDataCache = new Map<string, DuolingoUserData>();
 
-  /** Cached homepage HTML for TTS voice discovery. */
-  private homepageCache: string | null = null;
+  /**
+   * Cached set of voice names discovered for each language via the session API.
+   * lang → Set<voiceName>
+   */
+  private voiceCache = new Map<string, Set<string>>();
 
   /** Voice URL dictionary: lang → word → Set<url> */
   private voiceUrlDict: Map<string, Map<string, Set<string>>> = new Map();
@@ -153,6 +161,9 @@ export class DuolingoClient {
     source: string,
     target: string,
   ): Promise<Record<string, string[]>> {
+    const userData = await this.getUserData();
+    const dictBaseUrl = this.normalizeDictBaseUrl(userData.dict_base_url);
+
     const segments = this.segmentWordList(words);
     const results: Record<string, string[]> = {};
     for (const segment of segments) {
@@ -160,6 +171,7 @@ export class DuolingoClient {
         segment,
         source,
         target,
+        dictBaseUrl,
       );
       Object.assign(results, segmentResults);
     }
@@ -207,33 +219,87 @@ export class DuolingoClient {
   }
 
   /**
-   * Fetch the Duolingo homepage HTML (cached).
-   * Used for TTS voice discovery.
+   * Get the TTS base URL for the authenticated user.
+   * Falls back to the known CDN URL if not present in user data.
    */
-  async getHomepage(): Promise<string> {
-    if (this.homepageCache) return this.homepageCache;
-    const resp = await this.http.get<string>(BASE_URL, {
-      responseType: 'text',
-    });
-    this.homepageCache = resp.data;
-    return this.homepageCache;
+  async getTtsBaseUrl(): Promise<string> {
+    const userData = await this.getUserData();
+    return this.normalizeTtsBaseUrl(userData.tts_base_url);
   }
 
   /**
-   * Fetch a practice session for a skill.
-   * Used to discover audio URLs for words.
+   * Discover available TTS voice names for a language by making a single
+   * GLOBAL_PRACTICE session request and extracting voice names from the
+   * TTS CDN URLs returned in the challenges.
+   *
+   * Voice names are extracted from URLs of the form:
+   *   https://<cdn>/<voiceName>/<hash>
+   *
+   * Results are cached per language.
    */
-  async getSession(
-    skillId: string,
+  async getLanguageVoices(langAbbr: string): Promise<string[]> {
+    if (this.voiceCache.has(langAbbr)) {
+      return [...this.voiceCache.get(langAbbr)!];
+    }
+
+    const userData = await this.getUserData();
+    const langData = userData.language_data[langAbbr];
+    const fromLanguage = langData ? (langAbbr !== 'en' ? 'en' : 'de') : 'en';
+
+    const session = await this.getGlobalPracticeSession(langAbbr, fromLanguage);
+
+    const voices = new Set<string>();
+    if (session) {
+      // Extract voice names from TTS URLs in challenges
+      for (const challenge of session.challenges) {
+        const voiceName = this.extractVoiceFromTtsUrl(challenge.tts);
+        if (voiceName) voices.add(voiceName);
+      }
+      // Also extract from ttsAnnotations keys
+      for (const url of Object.keys(session.ttsAnnotations ?? {})) {
+        const voiceName = this.extractVoiceFromTtsUrl(url);
+        if (voiceName) voices.add(voiceName);
+      }
+    }
+
+    this.voiceCache.set(langAbbr, voices);
+    return [...voices];
+  }
+
+  /**
+   * Build a TTS audio URL for a word using the tts_base_url from user data.
+   *
+   * URL format: {ttsBaseUrl}tts/{lang}/{voice}/token/{word}
+   * Without voice: {ttsBaseUrl}tts/{lang}/token/{word}
+   */
+  async buildAudioUrl(
+    word: string,
     langAbbr: string,
+    voice?: string,
+  ): Promise<string> {
+    const ttsBaseUrl = await this.getTtsBaseUrl();
+    const base = ttsBaseUrl.endsWith('/') ? ttsBaseUrl : `${ttsBaseUrl}/`;
+    const encodedWord = encodeURIComponent(word);
+    if (voice) {
+      return `${base}tts/${langAbbr}/${voice}/token/${encodedWord}`;
+    }
+    return `${base}tts/${langAbbr}/token/${encodedWord}`;
+  }
+
+  /**
+   * Fetch a GLOBAL_PRACTICE session for a language.
+   * Used to discover TTS voice names and audio URLs.
+   */
+  async getGlobalPracticeSession(
+    langAbbr: string,
+    fromLanguage: string,
   ): Promise<DuolingoSessionResponse | null> {
     const url = `${BASE_URL}/2017-06-30/sessions`;
     const data: DuolingoSessionRequest = {
-      fromLanguage: langAbbr !== 'en' ? 'en' : 'de',
+      fromLanguage,
       learningLanguage: langAbbr,
       challengeTypes: ['definition', 'translate'],
-      skillId,
-      type: 'SKILL_PRACTICE',
+      type: 'GLOBAL_PRACTICE',
       juicy: true,
       smartTipsVersion: 2,
     };
@@ -243,7 +309,7 @@ export class DuolingoClient {
       resp = await this.http.post<DuolingoSessionResponse>(url, data);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        return null; // Non-fatal: skip this skill
+        return null; // Non-fatal
       }
       throw err;
     }
@@ -252,13 +318,28 @@ export class DuolingoClient {
     return resp.data as DuolingoSessionResponse;
   }
 
+  /**
+   * Fetch a practice session for a skill.
+   * Used to discover audio URLs for words.
+   * @deprecated Use getGlobalPracticeSession instead — SKILL_PRACTICE is no longer supported.
+   */
+  async getSession(
+    skillId: string,
+    langAbbr: string,
+  ): Promise<DuolingoSessionResponse | null> {
+    return this.getGlobalPracticeSession(
+      langAbbr,
+      langAbbr !== 'en' ? 'en' : 'de',
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Voice URL dictionary
   // ---------------------------------------------------------------------------
 
   /**
-   * Populate the voice URL dictionary for a language by scraping sessions.
-   * This is expensive — it makes one API call per skill.
+   * Populate the voice URL dictionary for a language by scraping a session.
+   * Uses GLOBAL_PRACTICE (the only supported session type in the current API).
    */
   async populateVoiceUrlDictionary(langAbbr: string): Promise<void> {
     if (!this.voiceUrlDict.has(langAbbr)) {
@@ -268,26 +349,24 @@ export class DuolingoClient {
 
     const userData = await this.getUserData();
     const langData = userData.language_data[langAbbr];
-    if (!langData) return;
+    const fromLanguage = langData ? (langAbbr !== 'en' ? 'en' : 'de') : 'en';
 
-    for (const skill of langData.skills) {
-      const session = await this.getSession(skill.id, langAbbr);
-      if (!session) continue;
+    const session = await this.getGlobalPracticeSession(langAbbr, fromLanguage);
+    if (!session) return;
 
-      for (const challenge of session.challenges) {
-        if (challenge.prompt && challenge.tts) {
-          this.addToVoiceUrlDict(langDict, challenge.prompt, challenge.tts);
+    for (const challenge of session.challenges) {
+      if (challenge.prompt && challenge.tts) {
+        this.addToVoiceUrlDict(langDict, challenge.prompt, challenge.tts);
+      }
+      if (challenge.metadata?.non_character_tts?.tokens) {
+        for (const [word, url] of Object.entries(
+          challenge.metadata.non_character_tts.tokens,
+        )) {
+          this.addToVoiceUrlDict(langDict, word, url);
         }
-        if (challenge.metadata?.non_character_tts?.tokens) {
-          for (const [word, url] of Object.entries(
-            challenge.metadata.non_character_tts.tokens,
-          )) {
-            this.addToVoiceUrlDict(langDict, word, url);
-          }
-        }
-        if (challenge.tokens) {
-          this.addTokenListToVoiceUrlDict(langDict, challenge.tokens);
-        }
+      }
+      if (challenge.tokens) {
+        this.addTokenListToVoiceUrlDict(langDict, challenge.tokens);
       }
     }
   }
@@ -307,6 +386,35 @@ export class DuolingoClient {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Extract the voice name from a Duolingo TTS CDN URL.
+   * URL format: https://<cdn>/<voiceName>/<hash>
+   */
+  private extractVoiceFromTtsUrl(url?: string): string | null {
+    if (!url) return null;
+    // Match: https://d1vq87e9lcf771.cloudfront.net/<voice>/<hash>
+    const match = url.match(/cloudfront\.net\/([^/]+)\/[^/]+$/);
+    return match?.[1] ?? null;
+  }
+
+  /**
+   * Normalize a TTS base URL to always end with a slash and use HTTPS.
+   */
+  private normalizeTtsBaseUrl(raw?: string): string {
+    if (!raw) return FALLBACK_TTS_BASE_URL;
+    const url = raw.replace(/^http:\/\//, 'https://');
+    return url.endsWith('/') ? url : `${url}/`;
+  }
+
+  /**
+   * Normalize the dict base URL to use HTTPS.
+   * The API returns http://d2.duolingo.com/ — upgrade to HTTPS.
+   */
+  private normalizeDictBaseUrl(raw?: string): string {
+    if (!raw) return 'https://d2.duolingo.com';
+    return raw.replace(/^http:\/\//, 'https://').replace(/\/$/, '');
+  }
 
   private addToVoiceUrlDict(
     dict: Map<string, Set<string>>,
@@ -365,9 +473,10 @@ export class DuolingoClient {
     words: string[],
     source: string,
     target: string,
+    dictBaseUrl: string,
   ): Promise<Record<string, string[]>> {
     const wordParam = JSON.stringify(words);
-    const url = `${DICT_BASE_URL}/api/1/dictionary/hints/${encodeURIComponent(source)}/${encodeURIComponent(target)}?tokens=${encodeURIComponent(wordParam)}`;
+    const url = `${dictBaseUrl}/api/1/dictionary/hints/${encodeURIComponent(source)}/${encodeURIComponent(target)}?tokens=${encodeURIComponent(wordParam)}`;
     const resp = await this.http.get<Record<string, string[]>>(url);
     return resp.data;
   }
