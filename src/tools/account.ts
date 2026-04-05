@@ -157,11 +157,29 @@ export function registerAccountTools(server: McpServer): void {
     },
     async ({ username, response_format }) => {
       try {
-        const userData = await getClient().getUserData(username);
+        const client = getClient();
+
+        // Resolve user ID for the v2 API
+        let userId: number;
+        if (!username) {
+          const userData = await client.getUserData();
+          userId = userData.id;
+        } else {
+          userId = await client.getUserIdByUsername(username);
+        }
+
+        const v2 = await client.getUserDataV2(userId);
+        const streakData = v2.streakData;
+        const current = streakData?.currentStreak;
+
         const info = {
-          site_streak: userData.site_streak,
-          daily_goal: userData.daily_goal,
-          streak_extended_today: userData.streak_extended_today,
+          site_streak: v2.streak,
+          daily_goal: streakData?.xpGoal ?? null,
+          streak_extended_today: current
+            ? current.lastExtendedDate === new Date().toISOString().slice(0, 10)
+            : false,
+          streak_start: current?.startDate ?? null,
+          longest_streak: streakData?.longestStreak?.length ?? null,
         };
 
         if (response_format === 'json') {
@@ -175,9 +193,14 @@ export function registerAccountTools(server: McpServer): void {
           '# Duolingo Streak',
           '',
           `- **Current Streak**: ${info.site_streak} days`,
-          `- **Daily Goal**: ${info.daily_goal} XP`,
           `- **Extended Today**: ${extended}`,
         ];
+        if (info.daily_goal !== null)
+          lines.push(`- **Daily Goal**: ${info.daily_goal} XP`);
+        if (info.streak_start)
+          lines.push(`- **Streak Started**: ${info.streak_start}`);
+        if (info.longest_streak !== null)
+          lines.push(`- **Longest Streak**: ${info.longest_streak} days`);
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {
         return { content: [{ type: 'text', text: handleError(err) }] };
@@ -288,12 +311,27 @@ export function registerAccountTools(server: McpServer): void {
     },
     async ({ username, abbreviations, response_format }) => {
       try {
-        const userData = await getClient().getUserData(username);
-        const languages = userData.languages
-          .filter((lang) => lang.learning)
-          .map((lang) =>
-            abbreviations ? lang.language : lang.language_string,
-          );
+        const client = getClient();
+
+        // Resolve user ID for the v2 API
+        let userId: number;
+        if (!username) {
+          const userData = await client.getUserData();
+          userId = userData.id;
+        } else {
+          userId = await client.getUserIdByUsername(username);
+        }
+
+        const v2 = await client.getUserDataV2(userId);
+        // Filter to language courses only (not math/chess/music)
+        const langCourses = (v2.courses ?? []).filter(
+          (c) => c.subject === 'language' && c.learningLanguage,
+        );
+        const languages = langCourses.map((c) =>
+          abbreviations
+            ? (c.learningLanguage ?? c.topic)
+            : (c.title ?? c.learningLanguage ?? c.topic),
+        );
 
         if (languages.length === 0) {
           return {

@@ -3,7 +3,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerShopTools } from '../../src/tools/shop.js';
 import * as duolingoModule from '../../src/client/duolingo.js';
 import type { DuolingoClient } from '../../src/client/duolingo.js';
-import type { DuolingoUserData } from '../../src/client/types.js';
+import type {
+  DuolingoUserData,
+  DuolingoUserDataV2,
+} from '../../src/client/types.js';
 import { callTool } from '../helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -78,8 +81,44 @@ describe('Shop Tools', () => {
 
   beforeEach(() => {
     server = new McpServer({ name: 'test', version: '1.0.0' });
+    const mockV2: DuolingoUserDataV2 = {
+      id: 12345,
+      username: 'testuser',
+      name: 'Test User',
+      picture: '',
+      totalXp: 1000,
+      streak: 10,
+      streakData: { currentStreak: null, previousStreak: null },
+      hasPlus: false,
+      subscriberLevel: 'FREE',
+      fromLanguage: 'en',
+      learningLanguage: 'fr',
+      courses: [
+        {
+          id: 'DUOLINGO_FR_EN',
+          subject: 'language',
+          topic: 'fr',
+          xp: 1500,
+          fromLanguage: 'en',
+          learningLanguage: 'fr',
+          title: 'French',
+        },
+        {
+          id: 'DUOLINGO_DE_EN',
+          subject: 'language',
+          topic: 'de',
+          xp: 300,
+          fromLanguage: 'en',
+          learningLanguage: 'de',
+          title: 'German',
+        },
+      ],
+    };
+
     mockClient = {
       getUserData: vi.fn().mockResolvedValue(MOCK_USER_DATA),
+      getUserIdByUsername: vi.fn().mockResolvedValue(12345),
+      getUserDataV2: vi.fn().mockResolvedValue(mockV2),
     };
 
     vi.spyOn(duolingoModule, 'getClient').mockReturnValue(

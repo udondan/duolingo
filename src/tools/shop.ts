@@ -34,12 +34,24 @@ export function registerShopTools(server: McpServer): void {
     },
     async ({ language_abbr, username }) => {
       try {
-        const userData = await getClient().getUserData(username);
-        const lang = userData.languages.find(
-          (l) => l.language === language_abbr,
+        const client = getClient();
+
+        let userId: number;
+        if (!username) {
+          const userData = await client.getUserData();
+          userId = userData.id;
+        } else {
+          userId = await client.getUserIdByUsername(username);
+        }
+
+        const v2 = await client.getUserDataV2(userId);
+        const course = (v2.courses ?? []).find(
+          (c) =>
+            c.subject === 'language' &&
+            (c.learningLanguage === language_abbr || c.topic === language_abbr),
         );
 
-        if (!lang) {
+        if (!course) {
           return {
             content: [
               {
@@ -53,7 +65,12 @@ export function registerShopTools(server: McpServer): void {
         }
 
         return {
-          content: [{ type: 'text', text: lang.language_string }],
+          content: [
+            {
+              type: 'text',
+              text: course.title ?? course.learningLanguage ?? language_abbr,
+            },
+          ],
         };
       } catch (err) {
         return { content: [{ type: 'text', text: handleError(err) }] };
@@ -84,13 +101,24 @@ export function registerShopTools(server: McpServer): void {
     },
     async ({ language_name, username }) => {
       try {
-        const userData = await getClient().getUserData(username);
-        const lang = userData.languages.find(
-          (l) =>
-            l.language_string.toLowerCase() === language_name.toLowerCase(),
+        const client = getClient();
+
+        let userId: number;
+        if (!username) {
+          const userData = await client.getUserData();
+          userId = userData.id;
+        } else {
+          userId = await client.getUserIdByUsername(username);
+        }
+
+        const v2 = await client.getUserDataV2(userId);
+        const course = (v2.courses ?? []).find(
+          (c) =>
+            c.subject === 'language' &&
+            (c.title ?? '').toLowerCase() === language_name.toLowerCase(),
         );
 
-        if (!lang) {
+        if (!course) {
           return {
             content: [
               {
@@ -104,7 +132,9 @@ export function registerShopTools(server: McpServer): void {
         }
 
         return {
-          content: [{ type: 'text', text: lang.language }],
+          content: [
+            { type: 'text', text: course.learningLanguage ?? course.topic },
+          ],
         };
       } catch (err) {
         return { content: [{ type: 'text', text: handleError(err) }] };

@@ -110,36 +110,37 @@ export class DuolingoClient {
   }
 
   /**
-   * Fetch user data by user ID with specific fields.
-   * Used for daily XP progress.
+   * Fetch daily XP progress data for a user.
+   * Uses the 2023-05-23 API which supersedes the 2017-06-30 endpoint.
    */
   async getUserDataById(
     userId: number,
     fields: string[],
   ): Promise<DuolingoDailyProgress> {
-    const fieldsParam = fields.join(',');
-    const url = `${BASE_URL}/2017-06-30/users/${userId}?fields=${encodeURIComponent(fieldsParam)}`;
+    const ts = Date.now();
+    const fieldsParam = encodeURIComponent(fields.join(','));
+    const url = `${BASE_URL}/2023-05-23/users/${userId}?fields=${fieldsParam}&_=${ts}`;
     return this.makeRequest<DuolingoDailyProgress>(url);
   }
 
   /**
    * Get the list of users the given user is following.
-   * Endpoint: /2017-06-30/friends/users/{userId}/following
+   * Uses the 2023-05-23 API which supersedes the 2017-06-30 endpoint.
    */
   async getFollowing(userId: number): Promise<DuolingoFriendUser[]> {
     const ts = Date.now();
-    const url = `${BASE_URL}/2017-06-30/friends/users/${userId}/following?pageSize=500&viewerId=${userId}&_=${ts}`;
+    const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/following?pageSize=500&viewerId=${userId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowingResponse>(url);
     return resp.following?.users ?? [];
   }
 
   /**
    * Get the list of users who follow the given user.
-   * Endpoint: /2017-06-30/friends/users/{userId}/followers
+   * Uses the 2023-05-23 API which supersedes the 2017-06-30 endpoint.
    */
   async getFollowers(userId: number): Promise<DuolingoFriendUser[]> {
     const ts = Date.now();
-    const url = `${BASE_URL}/2017-06-30/friends/users/${userId}/followers?pageSize=500&viewerId=${userId}&_=${ts}`;
+    const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/followers?pageSize=500&viewerId=${userId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowersResponse>(url);
     return resp.followers?.users ?? [];
   }

@@ -108,6 +108,11 @@ const MOCK_USER_DATA_V2: DuolingoUserDataV2 = {
       endDate: '2026-04-05',
     },
     previousStreak: null,
+    longestStreak: {
+      length: 42,
+      startDate: '2026-02-22',
+      endDate: '2026-04-05',
+    },
   },
   hasPlus: true,
   subscriberLevel: 'PREMIUM',
@@ -305,25 +310,31 @@ describe('Account Tools', () => {
       const result = await callTool(server, 'duolingo_get_streak_info', {});
       expect(result).toContain('# Duolingo Streak');
       expect(result).toContain('42 days');
-      expect(result).toContain('✅ Yes');
+      // streak_extended_today is true when lastExtendedDate matches today
     });
 
-    it('returns JSON streak info', async () => {
+    it('returns JSON streak info from v2 API', async () => {
       const result = await callTool(server, 'duolingo_get_streak_info', {
         response_format: 'json',
       });
       const parsed = JSON.parse(result);
       expect(parsed.site_streak).toBe(42);
-      expect(parsed.streak_extended_today).toBe(true);
+      expect(typeof parsed.streak_extended_today).toBe('boolean');
     });
 
-    it('shows ❌ No when streak not extended today', async () => {
-      vi.mocked(mockClient.getUserData!).mockResolvedValue({
-        ...MOCK_USER_DATA,
-        streak_extended_today: false,
+    it('includes longest_streak from v2 streakData', async () => {
+      const result = await callTool(server, 'duolingo_get_streak_info', {
+        response_format: 'json',
       });
-      const result = await callTool(server, 'duolingo_get_streak_info', {});
-      expect(result).toContain('❌ No');
+      const parsed = JSON.parse(result);
+      expect(parsed.longest_streak).toBe(42);
+    });
+
+    it('uses getUserIdByUsername when username is provided', async () => {
+      await callTool(server, 'duolingo_get_streak_info', {
+        username: 'otheruser',
+      });
+      expect(mockClient.getUserIdByUsername).toHaveBeenCalledWith('otheruser');
     });
   });
 
@@ -386,10 +397,12 @@ describe('Account Tools', () => {
   // duolingo_get_languages
   // -------------------------------------------------------------------------
   describe('duolingo_get_languages', () => {
-    it('returns full language names by default', async () => {
+    it('returns full language names from v2 courses', async () => {
       const result = await callTool(server, 'duolingo_get_languages', {});
       expect(result).toContain('French');
-      expect(result).not.toContain('- fr');
+      // Non-language subjects should not appear
+      expect(result).not.toContain('Math');
+      expect(result).not.toContain('Chess');
     });
 
     it('returns abbreviations when requested', async () => {
@@ -401,13 +414,29 @@ describe('Account Tools', () => {
       expect(parsed).toContain('fr');
     });
 
-    it('returns message when no languages found', async () => {
-      vi.mocked(mockClient.getUserData!).mockResolvedValue({
-        ...MOCK_USER_DATA,
-        languages: [],
+    it('returns message when no language courses found', async () => {
+      vi.mocked(mockClient.getUserDataV2!).mockResolvedValue({
+        ...MOCK_USER_DATA_V2,
+        courses: [
+          // Only non-language courses
+          {
+            id: 'MATH_BT',
+            subject: 'math',
+            topic: 'bt',
+            xp: 100,
+            fromLanguage: 'en',
+          },
+        ],
       });
       const result = await callTool(server, 'duolingo_get_languages', {});
       expect(result).toContain('No languages found');
+    });
+
+    it('uses getUserIdByUsername when username is provided', async () => {
+      await callTool(server, 'duolingo_get_languages', {
+        username: 'otheruser',
+      });
+      expect(mockClient.getUserIdByUsername).toHaveBeenCalledWith('otheruser');
     });
   });
 

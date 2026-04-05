@@ -234,7 +234,7 @@ describe('DuolingoClient', () => {
       };
       const client = makeClientWithMockHttp(
         new Map([
-          ['/2017-06-30/users/12345', { status: 200, data: mockProgress }],
+          ['/2023-05-23/users/12345', { status: 200, data: mockProgress }],
         ]),
       );
       const data = await client.getUserDataById(12345, [
