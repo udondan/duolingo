@@ -91,6 +91,65 @@ export interface DuolingoUserData {
   [key: string]: unknown;
 }
 
+/**
+ * A course entry from the 2023-05-23 API.
+ * Covers language courses as well as non-language subjects (math, chess, music).
+ */
+export interface DuolingoCourse {
+  id: string;
+  /** Subject type: 'language' | 'math' | 'chess' | 'music' */
+  subject: string;
+  /** Short topic code, e.g. 'es', 'bt' (math), 'ch' (chess), 'mt' (music). */
+  topic: string;
+  xp: number;
+  fromLanguage: string;
+  /** Only present for language courses. */
+  learningLanguage?: string;
+  /** Only present for language courses. */
+  title?: string;
+  /** Only present for language courses. */
+  authorId?: string;
+  [key: string]: unknown;
+}
+
+export interface DuolingoStreakInfo {
+  length: number;
+  lastExtendedDate?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface DuolingoStreakDataV2 {
+  currentStreak: DuolingoStreakInfo | null;
+  previousStreak: DuolingoStreakInfo | null;
+  longestStreak?: DuolingoStreakInfo;
+  updatedTimestamp?: number;
+  [key: string]: unknown;
+}
+
+/** User data from the 2023-05-23 API — includes non-language courses. */
+export interface DuolingoUserDataV2 {
+  id: number;
+  username: string;
+  name: string | null;
+  picture: string;
+  totalXp: number;
+  streak: number;
+  streakData: DuolingoStreakDataV2;
+  courses: DuolingoCourse[];
+  hasPlus: boolean;
+  subscriberLevel: string;
+  fromLanguage: string;
+  learningLanguage: string;
+  location?: string | null;
+  creationDate?: number;
+  [key: string]: unknown;
+}
+
+export interface DuolingoUserIdResponse {
+  users: Array<{ id: number }>;
+}
+
 export interface DuolingoXpGain {
   skillId: string | null;
   xp: number;

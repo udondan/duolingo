@@ -2,7 +2,7 @@
  * Account-level Duolingo MCP tools.
  *
  * Tools: get_user_info, get_settings, get_streak_info, get_daily_xp_progress,
- *        get_languages, get_friends, get_calendar, get_leaderboard
+ *        get_languages, get_courses, get_friends, get_calendar, get_leaderboard
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -521,6 +521,81 @@ export function registerAccountTools(server: McpServer): void {
           const name = entry.display_name || entry.username;
           lines.push(
             `${rank + 1}. **${name}** (@${entry.username}) — ${entry.points} pts`,
+          );
+        }
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      } catch (err) {
+        return { content: [{ type: 'text', text: handleError(err) }] };
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Get Courses (all subjects: language, math, chess, music)
+  // -------------------------------------------------------------------------
+  server.tool(
+    'duolingo_get_courses',
+    'Get all courses a Duolingo user is enrolled in, including non-language subjects ' +
+      "like Math, Chess, and Music. Returns each course's subject, title, XP earned, " +
+      'and course ID. Language courses also include the language code.',
+    {
+      username: UsernameFieldSchema,
+      response_format: ResponseFormatSchema,
+    },
+    {
+      title: 'Get Duolingo Courses',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    async ({ username, response_format }) => {
+      try {
+        const client = getClient();
+
+        // Resolve user ID: use authenticated user's ID if no username given,
+        // otherwise look up the target user's ID via the v2 API.
+        let userId: number;
+        if (!username) {
+          const userData = await client.getUserData();
+          userId = userData.id;
+        } else {
+          userId = await client.getUserIdByUsername(username);
+        }
+
+        const v2 = await client.getUserDataV2(userId);
+        const courses = v2.courses ?? [];
+
+        if (courses.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No courses found.' }],
+          };
+        }
+
+        if (response_format === 'json') {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(courses, null, 2) }],
+          };
+        }
+
+        const SUBJECT_LABELS: Record<string, string> = {
+          language: '🌐 Language',
+          math: '🔢 Math',
+          chess: '♟️ Chess',
+          music: '🎵 Music',
+        };
+
+        const lines = [`# Courses for ${v2.username}`, ''];
+        for (const course of courses) {
+          const label = SUBJECT_LABELS[course.subject] ?? course.subject;
+          const title =
+            course.title ??
+            course.subject.charAt(0).toUpperCase() + course.subject.slice(1);
+          const lang = course.learningLanguage
+            ? ` (${course.learningLanguage})`
+            : '';
+          lines.push(
+            `- **${label}: ${title}${lang}** — ${course.xp.toLocaleString()} XP`,
           );
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };

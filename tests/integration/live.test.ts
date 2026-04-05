@@ -611,3 +611,104 @@ describe('Live API: Public user data', () => {
     expect(langKeys.length).toBeGreaterThanOrEqual(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// getUserDataV2 — 2023-05-23 API (all courses including math/chess/music)
+// ---------------------------------------------------------------------------
+
+describe('Live API: getUserDataV2 (2023-05-23 API)', () => {
+  it('returns all courses including non-language subjects', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const v2 = await client.getUserDataV2(userData.id);
+
+    expect(typeof v2.id).toBe('number');
+    expect(typeof v2.username).toBe('string');
+    expect(typeof v2.totalXp).toBe('number');
+    expect(typeof v2.streak).toBe('number');
+    expect(Array.isArray(v2.courses)).toBe(true);
+    expect(v2.courses.length).toBeGreaterThan(0);
+  });
+
+  it('each course has required fields', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const v2 = await client.getUserDataV2(userData.id);
+
+    for (const course of v2.courses) {
+      expect(typeof course.id).toBe('string');
+      expect(typeof course.subject).toBe('string');
+      expect(typeof course.topic).toBe('string');
+      expect(typeof course.xp).toBe('number');
+      expect(course.xp).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('subject field distinguishes language from non-language courses', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const v2 = await client.getUserDataV2(userData.id);
+
+    const subjects = new Set(v2.courses.map((c) => c.subject));
+    // Must have at least one language course
+    expect(subjects.has('language')).toBe(true);
+  });
+
+  it('non-language courses (math/chess/music) have subject and xp but no learningLanguage', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const v2 = await client.getUserDataV2(userData.id);
+
+    const nonLanguage = v2.courses.filter((c) => c.subject !== 'language');
+    for (const course of nonLanguage) {
+      expect(['math', 'chess', 'music']).toContain(course.subject);
+      expect(course.learningLanguage).toBeUndefined();
+      expect(typeof course.xp).toBe('number');
+    }
+  });
+
+  it('streakData has currentStreak with length', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const v2 = await client.getUserDataV2(userData.id);
+
+    expect(typeof v2.streakData).toBe('object');
+    if (v2.streakData.currentStreak) {
+      expect(typeof v2.streakData.currentStreak.length).toBe('number');
+    }
+  });
+
+  it('can fetch data for a friend by user ID', async () => {
+    if (skipIfNoCredentials()) return;
+
+    // 4321Axolotl is a known friend with math and chess courses
+    const friendId = 241187211598860;
+    const v2 = await client.getUserDataV2(friendId);
+
+    expect(v2.username).toBe('4321Axolotl');
+    const subjects = v2.courses.map((c) => c.subject);
+    expect(subjects).toContain('math');
+    expect(subjects).toContain('chess');
+  });
+
+  it('getUserIdByUsername resolves username to numeric ID', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const id = await client.getUserIdByUsername('4321Axolotl');
+    expect(id).toBe(241187211598860);
+  });
+
+  it('caches v2 data on repeated calls', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const v2a = await client.getUserDataV2(userData.id);
+    const v2b = await client.getUserDataV2(userData.id);
+    expect(v2a).toBe(v2b); // same object reference = cached
+  });
+});

@@ -6,6 +6,7 @@ import type { DuolingoClient } from '../../src/client/duolingo.js';
 import type {
   DuolingoUserData,
   DuolingoFriendUser,
+  DuolingoUserDataV2,
 } from '../../src/client/types.js';
 import { DuolingoAuthError } from '../../src/client/errors.js';
 import { callTool } from '../helpers.js';
@@ -92,6 +93,61 @@ const MOCK_FOLLOWING: DuolingoFriendUser[] = [
   },
 ];
 
+const MOCK_USER_DATA_V2: DuolingoUserDataV2 = {
+  id: 12345,
+  username: 'testuser',
+  name: 'Test User',
+  picture: '//example.com/avatar.jpg',
+  totalXp: 50000,
+  streak: 42,
+  streakData: {
+    currentStreak: {
+      length: 42,
+      lastExtendedDate: '2026-04-05',
+      startDate: '2026-02-22',
+      endDate: '2026-04-05',
+    },
+    previousStreak: null,
+  },
+  hasPlus: true,
+  subscriberLevel: 'PREMIUM',
+  fromLanguage: 'en',
+  learningLanguage: 'fr',
+  courses: [
+    {
+      id: 'DUOLINGO_FR_EN',
+      subject: 'language',
+      topic: 'fr',
+      xp: 1500,
+      fromLanguage: 'en',
+      learningLanguage: 'fr',
+      title: 'French',
+      authorId: 'duolingo',
+    },
+    {
+      id: 'MATH_BT',
+      subject: 'math',
+      topic: 'bt',
+      xp: 3200,
+      fromLanguage: 'en',
+    },
+    {
+      id: 'CHESS_CH',
+      subject: 'chess',
+      topic: 'ch',
+      xp: 800,
+      fromLanguage: 'en',
+    },
+    {
+      id: 'MUSIC_MT',
+      subject: 'music',
+      topic: 'mt',
+      xp: 120,
+      fromLanguage: 'en',
+    },
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -118,6 +174,8 @@ describe('Account Tools', () => {
         },
       }),
       getFollowing: vi.fn().mockResolvedValue(MOCK_FOLLOWING),
+      getUserIdByUsername: vi.fn().mockResolvedValue(12345),
+      getUserDataV2: vi.fn().mockResolvedValue(MOCK_USER_DATA_V2),
     };
 
     vi.spyOn(duolingoModule, 'getClient').mockReturnValue(
@@ -412,6 +470,53 @@ describe('Account Tools', () => {
         unit: 'week',
       });
       expect(result).toContain("No leaderboard data found for unit 'week'");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // duolingo_get_courses
+  // -------------------------------------------------------------------------
+  describe('duolingo_get_courses', () => {
+    it('returns markdown list of all courses including non-language subjects', async () => {
+      const result = await callTool(server, 'duolingo_get_courses', {});
+      expect(result).toContain('# Courses for testuser');
+      expect(result).toContain('Language');
+      expect(result).toContain('Math');
+      expect(result).toContain('Chess');
+      expect(result).toContain('Music');
+    });
+
+    it('returns JSON list of all courses', async () => {
+      const result = await callTool(server, 'duolingo_get_courses', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveLength(4);
+      const subjects = parsed.map((c: { subject: string }) => c.subject);
+      expect(subjects).toContain('language');
+      expect(subjects).toContain('math');
+      expect(subjects).toContain('chess');
+      expect(subjects).toContain('music');
+    });
+
+    it('shows XP for each course', async () => {
+      const result = await callTool(server, 'duolingo_get_courses', {});
+      expect(result).toContain('1,500 XP');
+      expect(result).toContain('3,200 XP');
+    });
+
+    it('returns message when no courses found', async () => {
+      vi.mocked(mockClient.getUserDataV2!).mockResolvedValue({
+        ...MOCK_USER_DATA_V2,
+        courses: [],
+      });
+      const result = await callTool(server, 'duolingo_get_courses', {});
+      expect(result).toBe('No courses found.');
+    });
+
+    it('looks up user ID when username is provided', async () => {
+      await callTool(server, 'duolingo_get_courses', { username: 'otheruser' });
+      expect(mockClient.getUserIdByUsername).toHaveBeenCalledWith('otheruser');
     });
   });
 });

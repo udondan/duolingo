@@ -19,6 +19,8 @@ import type {
   DuolingoFollowingResponse,
   DuolingoFollowersResponse,
   DuolingoFriendUser,
+  DuolingoUserDataV2,
+  DuolingoUserIdResponse,
   DuolingoSessionRequest,
   DuolingoSessionResponse,
 } from './types.js';
@@ -46,6 +48,9 @@ export class DuolingoClient {
 
   /** Cache of user data keyed by username. */
   private readonly userDataCache = new Map<string, DuolingoUserData>();
+
+  /** Cache of v2 user data keyed by numeric user ID. */
+  private readonly userDataV2Cache = new Map<number, DuolingoUserDataV2>();
 
   /**
    * Cached set of voice names discovered for each language via the session API.
@@ -132,6 +137,72 @@ export class DuolingoClient {
     const url = `${BASE_URL}/2017-06-30/friends/users/${userId}/followers?pageSize=500&viewerId=${userId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowersResponse>(url);
     return resp.followers?.users ?? [];
+  }
+
+  /**
+   * Resolve a username to a numeric user ID using the 2023-05-23 API.
+   * Throws DuolingoNotFoundError if the username does not exist.
+   */
+  async getUserIdByUsername(username: string): Promise<number> {
+    const ts = Date.now();
+    const url = `${BASE_URL}/2023-05-23/users?fields=users%7Bid%7D&username=${encodeURIComponent(username)}&_=${ts}`;
+    const resp = await this.makeRequest<DuolingoUserIdResponse>(url);
+    const id = resp.users?.[0]?.id;
+    if (!id) {
+      throw new DuolingoNotFoundError(`User '${username}' not found.`);
+    }
+    return id;
+  }
+
+  /**
+   * Fetch rich user data from the 2023-05-23 API.
+   * Returns all courses including non-language subjects (math, chess, music),
+   * plus streak data, subscriber level, and more.
+   *
+   * Accepts either a numeric user ID or a username string.
+   * Results are cached per user ID for the lifetime of this client instance.
+   */
+  async getUserDataV2(
+    userIdOrUsername: number | string,
+  ): Promise<DuolingoUserDataV2> {
+    // Resolve username to ID if needed
+    let userId: number;
+    if (typeof userIdOrUsername === 'string') {
+      // Check if it looks like a number
+      const parsed = parseInt(userIdOrUsername, 10);
+      if (!isNaN(parsed) && String(parsed) === userIdOrUsername) {
+        userId = parsed;
+      } else {
+        userId = await this.getUserIdByUsername(userIdOrUsername);
+      }
+    } else {
+      userId = userIdOrUsername;
+    }
+
+    const cached = this.userDataV2Cache.get(userId);
+    if (cached) return cached;
+
+    const ts = Date.now();
+    const fields = [
+      'courses',
+      'creationDate',
+      'fromLanguage',
+      'hasPlus',
+      'id',
+      'learningLanguage',
+      'location',
+      'name',
+      'picture',
+      'streak',
+      'streakData{currentStreak,previousStreak,longestStreak,updatedTimestamp}',
+      'subscriberLevel',
+      'totalXp',
+      'username',
+    ].join(',');
+    const url = `${BASE_URL}/2023-05-23/users/${userId}?fields=${encodeURIComponent(fields)}&_=${ts}`;
+    const resp = await this.makeRequest<DuolingoUserDataV2>(url);
+    this.userDataV2Cache.set(userId, resp);
+    return resp;
   }
 
   /**
