@@ -273,6 +273,8 @@ describe('DuolingoClient', () => {
       };
       const client = makeClientWithMockHttp(
         new Map([
+          // getFollowing now calls getAuthenticatedUserId() → getUserData()
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
           [
             '/friends/users/12345/following',
             { status: 200, data: mockFollowing },

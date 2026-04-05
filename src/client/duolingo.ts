@@ -126,10 +126,13 @@ export class DuolingoClient {
   /**
    * Get the list of users the given user is following.
    * Uses the 2023-05-23 API which supersedes the 2017-06-30 endpoint.
+   *
+   * The `viewerId` must be the authenticated user's ID (not the target user's ID).
    */
   async getFollowing(userId: number): Promise<DuolingoFriendUser[]> {
     const ts = Date.now();
-    const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/following?pageSize=500&viewerId=${userId}&_=${ts}`;
+    const viewerId = await this.getAuthenticatedUserId();
+    const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/following?pageSize=500&viewerId=${viewerId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowingResponse>(url);
     return resp.following.users;
   }
@@ -137,10 +140,13 @@ export class DuolingoClient {
   /**
    * Get the list of users who follow the given user.
    * Uses the 2023-05-23 API which supersedes the 2017-06-30 endpoint.
+   *
+   * The `viewerId` must be the authenticated user's ID (not the target user's ID).
    */
   async getFollowers(userId: number): Promise<DuolingoFriendUser[]> {
     const ts = Date.now();
-    const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/followers?pageSize=500&viewerId=${userId}&_=${ts}`;
+    const viewerId = await this.getAuthenticatedUserId();
+    const url = `${BASE_URL}/2023-05-23/friends/users/${userId}/followers?pageSize=500&viewerId=${viewerId}&_=${ts}`;
     const resp = await this.makeRequest<DuolingoFollowersResponse>(url);
     return resp.followers.users;
   }
