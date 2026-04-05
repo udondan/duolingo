@@ -14,17 +14,11 @@ const MOCK_USER_DATA: DuolingoUserData = {
   username: 'testuser',
   bio: '',
   id: 12345,
-  num_following: 0,
   cohort: 1,
-  num_followers: 0,
   learning_language_string: 'French',
-  created: '2020-01-01',
-  contribution_points: 0,
-  gplus_id: '',
-  twitter_id: '',
+  creation_date: '2020-01-01T00:00:00',
   admin: false,
-  invites_left: 0,
-  location: '',
+  location: null,
   fullname: '',
   avatar: '',
   ui_language: 'en',
@@ -33,8 +27,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
   streak_extended_today: false,
   notify_comment: false,
   deactivated: false,
-  is_follower_by: false,
-  is_following: false,
   calendar: [],
   languages: [
     {
@@ -55,7 +47,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
       num_skills_learned: 2,
       level_percent: 40,
       level_points: 500,
-      points_rank: 3,
       next_level: 6,
       level_left: 300,
       language: 'fr',
@@ -63,7 +54,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
       fluency_score: 0.35,
       level: 5,
       calendar: [],
-      points_ranking_data: null,
       skills: [
         {
           id: 'skill-1',
@@ -132,7 +122,6 @@ describe('Language Tools', () => {
           },
         ),
       invalidateCache: vi.fn(),
-      switchLanguage: vi.fn().mockResolvedValue(undefined),
     };
 
     vi.spyOn(duolingoModule, 'getClient').mockReturnValue(

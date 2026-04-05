@@ -92,7 +92,7 @@ export interface DuolingoUserData {
 }
 
 export interface DuolingoXpGain {
-  skillId: string;
+  skillId: string | null;
   xp: number;
   time: number;
   eventType?: string | null;
@@ -144,15 +144,6 @@ export interface DuolingoFollowersResponse {
     totalUsers: number;
     cursor: string | null;
   };
-}
-
-export interface DuolingoShopItemRequest {
-  itemName: string;
-  learningLanguage: string;
-}
-
-export interface DuolingoShopErrorResponse {
-  error?: string;
 }
 
 export interface DuolingoSessionRequest {

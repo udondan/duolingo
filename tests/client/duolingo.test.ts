@@ -6,8 +6,6 @@ import {
 } from '../../src/client/duolingo.js';
 import {
   DuolingoAuthError,
-  DuolingoAlreadyHaveItemError,
-  DuolingoInsufficientFundsError,
   DuolingoCaptchaError,
   DuolingoNotFoundError,
 } from '../../src/client/errors.js';
@@ -356,53 +354,6 @@ describe('DuolingoClient', () => {
 
       // 1 call for getUserData + 3 calls for segments (2500 words → 3 segments)
       expect(mockGet).toHaveBeenCalledTimes(4);
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // buyItem
-  // -------------------------------------------------------------------------
-  describe('buyItem', () => {
-    it('successfully buys an item', async () => {
-      const client = makeClientWithMockHttp(
-        new Map([
-          [
-            '/shop-items',
-            { status: 200, data: { streak_freeze: '2024-01-01' } },
-          ],
-        ]),
-      );
-      await expect(
-        client.buyItem(12345, 'streak_freeze', 'fr'),
-      ).resolves.toBeUndefined();
-    });
-
-    it('throws DuolingoAlreadyHaveItemError when already owned', async () => {
-      const client = makeClientWithMockHttp(
-        new Map([
-          [
-            '/shop-items',
-            { status: 400, data: { error: 'ALREADY_HAVE_STORE_ITEM' } },
-          ],
-        ]),
-      );
-      await expect(
-        client.buyItem(12345, 'streak_freeze', 'fr'),
-      ).rejects.toThrow(DuolingoAlreadyHaveItemError);
-    });
-
-    it('throws DuolingoInsufficientFundsError when broke', async () => {
-      const client = makeClientWithMockHttp(
-        new Map([
-          [
-            '/shop-items',
-            { status: 400, data: { error: 'INSUFFICIENT_FUNDS' } },
-          ],
-        ]),
-      );
-      await expect(
-        client.buyItem(12345, 'streak_freeze', 'fr'),
-      ).rejects.toThrow(DuolingoInsufficientFundsError);
     });
   });
 });

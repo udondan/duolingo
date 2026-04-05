@@ -183,7 +183,10 @@ describe('Live API: getUserDataById (daily XP progress)', () => {
     // Each xpGain entry must have required fields
     for (const gain of dailyData.xpGains) {
       expect(typeof gain.xp).toBe('number');
-      expect(typeof gain.skillId).toBe('string');
+      // skillId can be null for some lesson types
+      expect(gain.skillId === null || typeof gain.skillId === 'string').toBe(
+        true,
+      );
       expect(typeof gain.time).toBe('number');
       expect(gain.time).toBeGreaterThan(0);
     }

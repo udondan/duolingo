@@ -26,22 +26,6 @@ export class DuolingoNotFoundError extends DuolingoClientError {
   }
 }
 
-/** Raised when trying to buy an item already owned. */
-export class DuolingoAlreadyHaveItemError extends DuolingoClientError {
-  constructor(itemName: string) {
-    super(`Already equipped with ${itemName}.`);
-    this.name = 'DuolingoAlreadyHaveItemError';
-  }
-}
-
-/** Raised when there are insufficient funds to purchase an item. */
-export class DuolingoInsufficientFundsError extends DuolingoClientError {
-  constructor(itemName: string) {
-    super(`Insufficient funds to purchase ${itemName}.`);
-    this.name = 'DuolingoInsufficientFundsError';
-  }
-}
-
 /** Raised when Duolingo returns a CAPTCHA challenge. */
 export class DuolingoCaptchaError extends DuolingoClientError {
   constructor() {

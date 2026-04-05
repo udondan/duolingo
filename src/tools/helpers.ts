@@ -7,8 +7,6 @@ import {
   DuolingoClientError,
   DuolingoAuthError,
   DuolingoNotFoundError,
-  DuolingoAlreadyHaveItemError,
-  DuolingoInsufficientFundsError,
   DuolingoCaptchaError,
 } from '../client/errors.js';
 import type { DuolingoSkill } from '../client/types.js';
@@ -51,12 +49,6 @@ export function handleError(err: unknown): string {
     return `Error: ${err.message}`;
   }
   if (err instanceof DuolingoNotFoundError) {
-    return `Error: ${err.message}`;
-  }
-  if (err instanceof DuolingoAlreadyHaveItemError) {
-    return `Error: ${err.message}`;
-  }
-  if (err instanceof DuolingoInsufficientFundsError) {
     return `Error: ${err.message}`;
   }
   if (err instanceof DuolingoClientError) {

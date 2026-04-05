@@ -8,8 +8,6 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import {
   DuolingoAuthError,
-  DuolingoAlreadyHaveItemError,
-  DuolingoInsufficientFundsError,
   DuolingoCaptchaError,
   DuolingoClientError,
   DuolingoNotFoundError,
@@ -21,7 +19,6 @@ import type {
   DuolingoFollowingResponse,
   DuolingoFollowersResponse,
   DuolingoFriendUser,
-  DuolingoShopErrorResponse,
   DuolingoSessionRequest,
   DuolingoSessionResponse,
 } from './types.js';
@@ -116,17 +113,6 @@ export class DuolingoClient {
   }
 
   /**
-   * Switch the active learning language for the authenticated user.
-   * Invalidates the user data cache after switching.
-   */
-  async switchLanguage(lang: string): Promise<void> {
-    const url = `${BASE_URL}/switch_language`;
-    await this.makeRequest(url, { learning_language: lang });
-    // Invalidate cache so next getUserData() fetches fresh data
-    this.invalidateCache(this.username);
-  }
-
-  /**
    * Get the list of users the given user is following.
    * Endpoint: /2017-06-30/friends/users/{userId}/following
    */
@@ -186,46 +172,6 @@ export class DuolingoClient {
       Object.assign(results, segmentResults);
     }
     return results;
-  }
-
-  /**
-   * Buy a shop item for the authenticated user.
-   */
-  async buyItem(
-    userId: number,
-    itemName: string,
-    languageAbbr: string,
-  ): Promise<void> {
-    const url = `${BASE_URL}/2017-06-30/users/${userId}/shop-items`;
-    const data = { itemName, learningLanguage: languageAbbr };
-
-    let resp: AxiosResponse;
-    try {
-      resp = await this.http.post(url, data);
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response) {
-        resp = err.response;
-      } else {
-        throw err;
-      }
-    }
-
-    if (resp.status === 400) {
-      const body = resp.data as DuolingoShopErrorResponse;
-      if (body.error === 'ALREADY_HAVE_STORE_ITEM') {
-        throw new DuolingoAlreadyHaveItemError(itemName);
-      }
-      if (body.error === 'INSUFFICIENT_FUNDS') {
-        throw new DuolingoInsufficientFundsError(itemName);
-      }
-      throw new DuolingoClientError(
-        `Unknown shop error while purchasing '${itemName}': ${body.error ?? 'unknown'}`,
-      );
-    }
-
-    if (!resp.status || resp.status < 200 || resp.status >= 300) {
-      throw new DuolingoClientError(`Failed to purchase '${itemName}'.`);
-    }
   }
 
   /**

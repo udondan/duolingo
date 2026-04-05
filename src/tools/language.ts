@@ -118,28 +118,7 @@ export function registerLanguageTools(server: McpServer): void {
     },
     async ({ language_abbr, username, response_format }) => {
       try {
-        const client = getClient();
-        const userData = await client.getUserData(username);
-
-        // Switch language if needed (only for authenticated user)
-        if (!userData.language_data[language_abbr] && !username) {
-          await client.switchLanguage(language_abbr);
-          // Re-fetch after switch
-          client.invalidateCache();
-          const refreshed = await client.getUserData();
-          const langData = refreshed.language_data[language_abbr];
-          if (!langData) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `Language '${language_abbr}' not found. Make sure you are learning this language.`,
-                },
-              ],
-            };
-          }
-        }
-
+        const userData = await getClient().getUserData(username);
         const langData = userData.language_data[language_abbr];
         if (!langData) {
           return {
