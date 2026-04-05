@@ -1,5 +1,5 @@
 {
-  "name": "duolingo-mcp",
+  "name": "@udondan/duolingo",
   "version": "1.0.0",
   "description": "Duolingo API client library and MCP server",
   "type": "module",
