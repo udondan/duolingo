@@ -712,3 +712,101 @@ describe('Live API: getUserDataV2 (2023-05-23 API)', () => {
     expect(v2a).toBe(v2b); // same object reference = cached
   });
 });
+
+// ---------------------------------------------------------------------------
+// getShopItems — 2023-05-23/shop-items
+// ---------------------------------------------------------------------------
+
+describe('Live API: getShopItems', () => {
+  it('returns a non-empty list of shop items', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const items = await client.getShopItems();
+
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.length).toBeGreaterThan(0);
+  });
+
+  it('each item has required fields', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const items = await client.getShopItems();
+
+    for (const item of items) {
+      expect(typeof item.id).toBe('string');
+      expect(typeof item.type).toBe('string');
+      expect(typeof item.price).toBe('number');
+      expect(typeof item.currencyType).toBe('string');
+    }
+  });
+
+  it('streak_freeze is always in the shop', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const items = await client.getShopItems();
+    const ids = items.map((i) => i.id);
+    expect(ids).toContain('streak_freeze');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getHealth — 2023-05-23/users/{id}?fields=health
+// ---------------------------------------------------------------------------
+
+describe('Live API: getHealth', () => {
+  it('returns health/hearts data', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const health = await client.getHealth();
+
+    expect(typeof health.hearts).toBe('number');
+    expect(typeof health.maxHearts).toBe('number');
+    expect(health.hearts).toBeGreaterThanOrEqual(0);
+    expect(health.maxHearts).toBeGreaterThan(0);
+    expect(health.hearts).toBeLessThanOrEqual(health.maxHearts);
+    expect(typeof health.healthEnabled).toBe('boolean');
+    expect(typeof health.eligibleForFreeRefill).toBe('boolean');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getCurrencies — 2023-05-23/users/{id}?fields=gems,lingots
+// ---------------------------------------------------------------------------
+
+describe('Live API: getCurrencies', () => {
+  it('returns gem and lingot balances', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const currencies = await client.getCurrencies();
+
+    expect(typeof currencies.gems).toBe('number');
+    expect(typeof currencies.lingots).toBe('number');
+    expect(currencies.gems).toBeGreaterThanOrEqual(0);
+    expect(currencies.lingots).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getStreakGoalCurrent — /users/{id}/streak-goal-current
+// ---------------------------------------------------------------------------
+
+describe('Live API: getStreakGoalCurrent', () => {
+  it('returns streak goal data', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getStreakGoalCurrent();
+
+    expect(typeof data.hasActiveGoal).toBe('boolean');
+
+    if (data.hasActiveGoal && data.streakGoal) {
+      expect(typeof data.streakGoal.lastCompleteGoal).toBe('number');
+      expect(Array.isArray(data.streakGoal.checkpoints)).toBe(true);
+
+      for (const cp of data.streakGoal.checkpoints) {
+        expect(typeof cp.length).toBe('number');
+        expect(typeof cp.dayInterval).toBe('number');
+        expect(typeof cp.tier).toBe('number');
+      }
+    }
+  });
+});

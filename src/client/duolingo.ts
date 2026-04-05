@@ -21,6 +21,11 @@ import type {
   DuolingoFriendUser,
   DuolingoUserDataV2,
   DuolingoUserIdResponse,
+  DuolingoShopItemsResponse,
+  DuolingoShopItem,
+  DuolingoHealth,
+  DuolingoStreakGoalCurrentResponse,
+  DuolingoStreakGoalNextOptionsResponse,
   DuolingoSessionRequest,
   DuolingoSessionResponse,
 } from './types.js';
@@ -203,6 +208,68 @@ export class DuolingoClient {
     const resp = await this.makeRequest<DuolingoUserDataV2>(url);
     this.userDataV2Cache.set(userId, resp);
     return resp;
+  }
+
+  /**
+   * Get the full shop item catalogue from the 2023-05-23 API.
+   * Returns all purchasable items with prices, types, and last-used dates.
+   * This is a read-only endpoint — it does not purchase anything.
+   */
+  async getShopItems(): Promise<DuolingoShopItem[]> {
+    const ts = Date.now();
+    const url = `${BASE_URL}/2023-05-23/shop-items?_=${ts}`;
+    const resp = await this.makeRequest<DuolingoShopItemsResponse>(url);
+    return resp.shopItems ?? [];
+  }
+
+  /**
+   * Get the authenticated user's current hearts/health status.
+   * Returns heart count, max hearts, refill eligibility, and timing.
+   */
+  async getHealth(): Promise<DuolingoHealth> {
+    const ts = Date.now();
+    const url = `${BASE_URL}/2023-05-23/users/${await this.getAuthenticatedUserId()}?fields=health&_=${ts}`;
+    const resp = await this.makeRequest<{ health: DuolingoHealth }>(url);
+    return resp.health;
+  }
+
+  /**
+   * Get the authenticated user's gem and lingot balances.
+   */
+  async getCurrencies(): Promise<{ gems: number; lingots: number }> {
+    const ts = Date.now();
+    const url = `${BASE_URL}/2023-05-23/users/${await this.getAuthenticatedUserId()}?fields=gems,lingots&_=${ts}`;
+    const resp = await this.makeRequest<{ gems: number; lingots: number }>(url);
+    return { gems: resp.gems, lingots: resp.lingots };
+  }
+
+  /**
+   * Get the authenticated user's current streak goal.
+   */
+  async getStreakGoalCurrent(): Promise<DuolingoStreakGoalCurrentResponse> {
+    const ts = Date.now();
+    const userId = await this.getAuthenticatedUserId();
+    const url = `${BASE_URL}/users/${userId}/streak-goal-current?_=${ts}`;
+    return this.makeRequest<DuolingoStreakGoalCurrentResponse>(url);
+  }
+
+  /**
+   * Get the available next streak goal options for the authenticated user.
+   */
+  async getStreakGoalNextOptions(): Promise<DuolingoStreakGoalNextOptionsResponse> {
+    const ts = Date.now();
+    const userId = await this.getAuthenticatedUserId();
+    const url = `${BASE_URL}/users/${userId}/streak-goal-next-options?_=${ts}`;
+    return this.makeRequest<DuolingoStreakGoalNextOptionsResponse>(url);
+  }
+
+  /**
+   * Get the numeric user ID of the authenticated user.
+   * Cached via getUserData().
+   */
+  private async getAuthenticatedUserId(): Promise<number> {
+    const userData = await this.getUserData();
+    return userData.id;
   }
 
   /**

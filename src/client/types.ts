@@ -150,6 +150,64 @@ export interface DuolingoUserIdResponse {
   users: Array<{ id: number }>;
 }
 
+export interface DuolingoShopItem {
+  id: string;
+  name?: string;
+  type: string;
+  localizedDescription?: string;
+  price: number;
+  currencyType: string;
+  lastUsedDate?: number;
+  lastPurchaseDate?: number;
+  isActive?: boolean;
+  value?: number;
+  [key: string]: unknown;
+}
+
+export interface DuolingoShopItemsResponse {
+  shopItems: DuolingoShopItem[];
+}
+
+export interface DuolingoHealth {
+  eligibleForFreeRefill: boolean;
+  healthEnabled: boolean;
+  hearts: number;
+  maxHearts: number;
+  secondsPerHeartSegment: number;
+  secondsUntilNextHeartSegment: number | null;
+  useHealth: boolean;
+  unlimitedHeartsAvailable: boolean;
+}
+
+export interface DuolingoStreakGoalCheckpoint {
+  length: number;
+  dayInterval: number;
+  tier: number;
+}
+
+export interface DuolingoStreakGoal {
+  userId: string;
+  lastCompleteGoal: number;
+  checkpoints: DuolingoStreakGoalCheckpoint[];
+  nextSelectedGoal?: DuolingoStreakGoalCheckpoint;
+}
+
+export interface DuolingoStreakGoalCurrentResponse {
+  hasActiveGoal: boolean;
+  streakGoal: DuolingoStreakGoal;
+}
+
+export interface DuolingoStreakGoalOption {
+  length: number;
+  dayInterval: number;
+  tier: number;
+}
+
+export interface DuolingoStreakGoalNextOptionsResponse {
+  currentStreakOptions: DuolingoStreakGoalOption[];
+  previousStreakOptions: DuolingoStreakGoalOption[];
+}
+
 export interface DuolingoXpGain {
   skillId: string | null;
   xp: number;

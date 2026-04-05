@@ -2,7 +2,8 @@
  * Account-level Duolingo MCP tools.
  *
  * Tools: get_user_info, get_settings, get_streak_info, get_daily_xp_progress,
- *        get_languages, get_courses, get_friends, get_calendar, get_leaderboard
+ *        get_languages, get_courses, get_friends, get_calendar, get_leaderboard,
+ *        get_shop_items, get_health, get_currencies, get_streak_goal
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -597,6 +598,208 @@ export function registerAccountTools(server: McpServer): void {
           lines.push(
             `- **${label}: ${title}${lang}** — ${course.xp.toLocaleString()} XP`,
           );
+        }
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      } catch (err) {
+        return { content: [{ type: 'text', text: handleError(err) }] };
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Get Shop Items
+  // -------------------------------------------------------------------------
+  server.tool(
+    'duolingo_get_shop_items',
+    'Get the full Duolingo shop catalogue. Returns all purchasable items with ' +
+      'their prices, currency type (gems/lingots), item type, and last-used dates. ' +
+      'This is read-only — it does not purchase anything.',
+    {
+      response_format: ResponseFormatSchema,
+    },
+    {
+      title: 'Get Duolingo Shop Items',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    async ({ response_format }) => {
+      try {
+        const items = await getClient().getShopItems();
+
+        if (items.length === 0) {
+          return { content: [{ type: 'text', text: 'No shop items found.' }] };
+        }
+
+        if (response_format === 'json') {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(items, null, 2) }],
+          };
+        }
+
+        const lines = ['# Duolingo Shop', ''];
+        // Group by type
+        const byType = new Map<string, typeof items>();
+        for (const item of items) {
+          const group = byType.get(item.type) ?? [];
+          group.push(item);
+          byType.set(item.type, group);
+        }
+        for (const [type, typeItems] of byType) {
+          lines.push(
+            `## ${type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`,
+          );
+          for (const item of typeItems) {
+            const name = item.name || item.id;
+            const currency = item.currencyType === 'XGM' ? 'gems' : 'lingots';
+            lines.push(`- **${name}** — ${item.price} ${currency}`);
+          }
+          lines.push('');
+        }
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      } catch (err) {
+        return { content: [{ type: 'text', text: handleError(err) }] };
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Get Health (hearts)
+  // -------------------------------------------------------------------------
+  server.tool(
+    'duolingo_get_health',
+    "Get the authenticated user's current hearts/health status. " +
+      'Returns heart count, max hearts, refill eligibility, and time until next heart refill. ' +
+      'Only works for the authenticated user.',
+    {
+      response_format: ResponseFormatSchema,
+    },
+    {
+      title: 'Get Duolingo Health (Hearts)',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    async ({ response_format }) => {
+      try {
+        const health = await getClient().getHealth();
+
+        if (response_format === 'json') {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(health, null, 2) }],
+          };
+        }
+
+        const lines = ['# Hearts / Health', ''];
+        lines.push(`- **Hearts**: ${health.hearts} / ${health.maxHearts}`);
+        lines.push(
+          `- **Health Enabled**: ${health.healthEnabled ? 'Yes' : 'No'}`,
+        );
+        lines.push(
+          `- **Unlimited Hearts**: ${health.unlimitedHeartsAvailable ? 'Yes' : 'No'}`,
+        );
+        lines.push(
+          `- **Eligible for Free Refill**: ${health.eligibleForFreeRefill ? 'Yes' : 'No'}`,
+        );
+        if (health.secondsUntilNextHeartSegment !== null) {
+          const mins = Math.ceil(health.secondsUntilNextHeartSegment / 60);
+          lines.push(`- **Next Heart In**: ${mins} min`);
+        }
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      } catch (err) {
+        return { content: [{ type: 'text', text: handleError(err) }] };
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Get Currencies (gems + lingots)
+  // -------------------------------------------------------------------------
+  server.tool(
+    'duolingo_get_currencies',
+    "Get the authenticated user's gem and lingot balances. " +
+      'Only works for the authenticated user.',
+    {
+      response_format: ResponseFormatSchema,
+    },
+    {
+      title: 'Get Duolingo Currency Balances',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    async ({ response_format }) => {
+      try {
+        const currencies = await getClient().getCurrencies();
+
+        if (response_format === 'json') {
+          return {
+            content: [
+              { type: 'text', text: JSON.stringify(currencies, null, 2) },
+            ],
+          };
+        }
+
+        const lines = ['# Currency Balances', ''];
+        lines.push(`- **Gems**: ${currencies.gems.toLocaleString()}`);
+        lines.push(`- **Lingots**: ${currencies.lingots.toLocaleString()}`);
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      } catch (err) {
+        return { content: [{ type: 'text', text: handleError(err) }] };
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Get Streak Goal
+  // -------------------------------------------------------------------------
+  server.tool(
+    'duolingo_get_streak_goal',
+    "Get the authenticated user's current streak goal and upcoming checkpoints. " +
+      'Shows the last completed goal, upcoming milestones, and the next selected goal. ' +
+      'Only works for the authenticated user.',
+    {
+      response_format: ResponseFormatSchema,
+    },
+    {
+      title: 'Get Duolingo Streak Goal',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    async ({ response_format }) => {
+      try {
+        const data = await getClient().getStreakGoalCurrent();
+
+        if (response_format === 'json') {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+          };
+        }
+
+        if (!data.hasActiveGoal || !data.streakGoal) {
+          return {
+            content: [{ type: 'text', text: 'No active streak goal.' }],
+          };
+        }
+
+        const goal = data.streakGoal;
+        const lines = ['# Streak Goal', ''];
+        lines.push(`- **Last Completed Goal**: ${goal.lastCompleteGoal} days`);
+        if (goal.nextSelectedGoal) {
+          lines.push(
+            `- **Next Goal**: ${goal.nextSelectedGoal.length} days (every ${goal.nextSelectedGoal.dayInterval} days)`,
+          );
+        }
+        if (goal.checkpoints.length > 0) {
+          lines.push('', '## Upcoming Checkpoints');
+          for (const cp of goal.checkpoints) {
+            lines.push(`- ${cp.length} days`);
+          }
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {

@@ -176,6 +176,45 @@ describe('Account Tools', () => {
       getFollowing: vi.fn().mockResolvedValue(MOCK_FOLLOWING),
       getUserIdByUsername: vi.fn().mockResolvedValue(12345),
       getUserDataV2: vi.fn().mockResolvedValue(MOCK_USER_DATA_V2),
+      getShopItems: vi.fn().mockResolvedValue([
+        {
+          id: 'streak_freeze',
+          name: 'Streak Freeze',
+          type: 'misc',
+          price: 200,
+          currencyType: 'XGM',
+        },
+        {
+          id: 'formal_outfit',
+          name: 'Formal Outfit',
+          type: 'outfit',
+          price: 400,
+          currencyType: 'XGM',
+        },
+      ]),
+      getHealth: vi.fn().mockResolvedValue({
+        eligibleForFreeRefill: false,
+        healthEnabled: true,
+        hearts: 4,
+        maxHearts: 5,
+        secondsPerHeartSegment: 21600,
+        secondsUntilNextHeartSegment: 3600,
+        useHealth: true,
+        unlimitedHeartsAvailable: false,
+      }),
+      getCurrencies: vi.fn().mockResolvedValue({ gems: 9705, lingots: 92 }),
+      getStreakGoalCurrent: vi.fn().mockResolvedValue({
+        hasActiveGoal: true,
+        streakGoal: {
+          userId: '12345',
+          lastCompleteGoal: 175,
+          checkpoints: [
+            { length: 200, dayInterval: 25, tier: 2 },
+            { length: 225, dayInterval: 25, tier: 2 },
+          ],
+          nextSelectedGoal: { length: 250, dayInterval: 25, tier: 2 },
+        },
+      }),
     };
 
     vi.spyOn(duolingoModule, 'getClient').mockReturnValue(
@@ -517,6 +556,106 @@ describe('Account Tools', () => {
     it('looks up user ID when username is provided', async () => {
       await callTool(server, 'duolingo_get_courses', { username: 'otheruser' });
       expect(mockClient.getUserIdByUsername).toHaveBeenCalledWith('otheruser');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // duolingo_get_shop_items
+  // -------------------------------------------------------------------------
+  describe('duolingo_get_shop_items', () => {
+    it('returns markdown shop catalogue', async () => {
+      const result = await callTool(server, 'duolingo_get_shop_items', {});
+      expect(result).toContain('# Duolingo Shop');
+      expect(result).toContain('Streak Freeze');
+      expect(result).toContain('200 gems');
+    });
+
+    it('returns JSON shop items', async () => {
+      const result = await callTool(server, 'duolingo_get_shop_items', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].id).toBe('streak_freeze');
+    });
+
+    it('returns message when no items found', async () => {
+      vi.mocked(mockClient.getShopItems!).mockResolvedValue([]);
+      const result = await callTool(server, 'duolingo_get_shop_items', {});
+      expect(result).toBe('No shop items found.');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // duolingo_get_health
+  // -------------------------------------------------------------------------
+  describe('duolingo_get_health', () => {
+    it('returns markdown health status', async () => {
+      const result = await callTool(server, 'duolingo_get_health', {});
+      expect(result).toContain('# Hearts / Health');
+      expect(result).toContain('4 / 5');
+      expect(result).toContain('60 min');
+    });
+
+    it('returns JSON health data', async () => {
+      const result = await callTool(server, 'duolingo_get_health', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.hearts).toBe(4);
+      expect(parsed.maxHearts).toBe(5);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // duolingo_get_currencies
+  // -------------------------------------------------------------------------
+  describe('duolingo_get_currencies', () => {
+    it('returns markdown currency balances', async () => {
+      const result = await callTool(server, 'duolingo_get_currencies', {});
+      expect(result).toContain('# Currency Balances');
+      expect(result).toContain('9,705');
+      expect(result).toContain('92');
+    });
+
+    it('returns JSON currency data', async () => {
+      const result = await callTool(server, 'duolingo_get_currencies', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.gems).toBe(9705);
+      expect(parsed.lingots).toBe(92);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // duolingo_get_streak_goal
+  // -------------------------------------------------------------------------
+  describe('duolingo_get_streak_goal', () => {
+    it('returns markdown streak goal', async () => {
+      const result = await callTool(server, 'duolingo_get_streak_goal', {});
+      expect(result).toContain('# Streak Goal');
+      expect(result).toContain('175 days');
+      expect(result).toContain('250 days');
+    });
+
+    it('returns JSON streak goal data', async () => {
+      const result = await callTool(server, 'duolingo_get_streak_goal', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.hasActiveGoal).toBe(true);
+      expect(parsed.streakGoal.lastCompleteGoal).toBe(175);
+    });
+
+    it('returns message when no active goal', async () => {
+      vi.mocked(mockClient.getStreakGoalCurrent!).mockResolvedValue({
+        hasActiveGoal: false,
+        streakGoal:
+          null as unknown as import('../../src/client/types.js').DuolingoStreakGoal,
+      });
+      const result = await callTool(server, 'duolingo_get_streak_goal', {});
+      expect(result).toBe('No active streak goal.');
     });
   });
 });
