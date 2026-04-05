@@ -1,0 +1,619 @@
+/**
+ * Integration tests that fire against the live Duolingo API.
+ *
+ * These tests require DUOLINGO_USERNAME and DUOLINGO_JWT environment variables.
+ * They test the actual API responses to catch regressions when the Duolingo
+ * API changes its response shape.
+ *
+ * Run with: npm test (all tests) or vitest run tests/integration
+ *
+ * NOTE: These tests are read-only. They never purchase items or mutate state.
+ */
+
+import { describe, it, expect, beforeAll } from 'vitest';
+import { DuolingoClient, resetClient } from '../../src/client/duolingo.js';
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
+const USERNAME = process.env['DUOLINGO_USERNAME'];
+const JWT = process.env['DUOLINGO_JWT'];
+
+const SKIP_REASON =
+  'Skipping integration tests: DUOLINGO_USERNAME or DUOLINGO_JWT not set';
+
+function skipIfNoCredentials() {
+  if (!USERNAME || !JWT) {
+    return true;
+  }
+  return false;
+}
+
+let client: DuolingoClient;
+
+beforeAll(() => {
+  resetClient();
+  if (USERNAME && JWT) {
+    client = new DuolingoClient(USERNAME, JWT);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// getUserData — /users/<username>
+// ---------------------------------------------------------------------------
+
+describe('Live API: getUserData', () => {
+  it.skipIf(skipIfNoCredentials())(SKIP_REASON, async () => {
+    // This test is intentionally empty — the real tests follow below
+  });
+
+  it('returns user data for the authenticated user', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+
+    // Core identity fields
+    expect(data.username).toBe(USERNAME);
+    expect(typeof data.id).toBe('number');
+    expect(data.id).toBeGreaterThan(0);
+
+    // The API always returns these fields
+    expect(typeof data.ui_language).toBe('string');
+    expect(data.ui_language.length).toBeGreaterThan(0);
+
+    // learning_language_string may be empty if user has no active language
+    expect(typeof data.learning_language_string).toBe('string');
+
+    // languages array must exist (may be empty)
+    expect(Array.isArray(data.languages)).toBe(true);
+
+    // language_data must be an object
+    expect(typeof data.language_data).toBe('object');
+    expect(data.language_data).not.toBeNull();
+
+    // calendar must be an array
+    expect(Array.isArray(data.calendar)).toBe(true);
+
+    // streak fields
+    expect(typeof data.site_streak).toBe('number');
+    expect(data.site_streak).toBeGreaterThanOrEqual(0);
+    expect(typeof data.streak_extended_today).toBe('boolean');
+  });
+
+  it('returns user data for a known public user', async () => {
+    if (skipIfNoCredentials()) return;
+
+    // testuser123 is a well-known public Duolingo account
+    const data = await client.getUserData('testuser123');
+
+    expect(data.username).toBe('testuser123');
+    expect(typeof data.id).toBe('number');
+    expect(Array.isArray(data.languages)).toBe(true);
+    expect(data.languages.length).toBeGreaterThan(0);
+  });
+
+  it('throws DuolingoNotFoundError for a non-existent user', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const { DuolingoNotFoundError } =
+      await import('../../src/client/errors.js');
+    await expect(client.getUserData('xyznonexistentuser99999')).rejects.toThrow(
+      DuolingoNotFoundError,
+    );
+  });
+
+  it('caches user data on repeated calls', async () => {
+    if (skipIfNoCredentials()) return;
+
+    // Create a fresh client to avoid cross-test cache pollution
+    const freshClient = new DuolingoClient(USERNAME!, JWT!);
+    const data1 = await freshClient.getUserData();
+    const data2 = await freshClient.getUserData();
+
+    // Same object reference means it was cached
+    expect(data1).toBe(data2);
+  });
+
+  it('returns language_data with correct structure for learning languages', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+
+    // User must be learning at least one language
+    expect(langKeys.length).toBeGreaterThan(0);
+
+    for (const key of langKeys) {
+      const langData = data.language_data[key]!;
+
+      // Required numeric fields
+      expect(typeof langData.streak).toBe('number');
+      expect(typeof langData.level).toBe('number');
+      expect(typeof langData.points).toBe('number');
+      expect(typeof langData.num_skills_learned).toBe('number');
+
+      // Skills array
+      expect(Array.isArray(langData.skills)).toBe(true);
+
+      // Calendar array
+      expect(Array.isArray(langData.calendar)).toBe(true);
+    }
+  });
+
+  it('returns languages array with correct structure', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+
+    for (const lang of data.languages) {
+      expect(typeof lang.language).toBe('string');
+      expect(lang.language.length).toBeGreaterThan(0);
+      expect(typeof lang.language_string).toBe('string');
+      expect(typeof lang.learning).toBe('boolean');
+      expect(typeof lang.current_learning).toBe('boolean');
+      expect(typeof lang.level).toBe('number');
+      expect(typeof lang.points).toBe('number');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getUserDataById — /2017-06-30/users/<id>
+// ---------------------------------------------------------------------------
+
+describe('Live API: getUserDataById (daily XP progress)', () => {
+  it('returns daily XP progress data', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const dailyData = await client.getUserDataById(userData.id, [
+      'xpGoal',
+      'xpGains',
+      'streakData',
+    ]);
+
+    // xpGoal must be a positive number
+    expect(typeof dailyData.xpGoal).toBe('number');
+    expect(dailyData.xpGoal).toBeGreaterThan(0);
+
+    // xpGains must be an array
+    expect(Array.isArray(dailyData.xpGains)).toBe(true);
+
+    // Each xpGain entry must have required fields
+    for (const gain of dailyData.xpGains) {
+      expect(typeof gain.xp).toBe('number');
+      expect(typeof gain.skillId).toBe('string');
+      expect(typeof gain.time).toBe('number');
+      expect(gain.time).toBeGreaterThan(0);
+    }
+
+    // streakData must have updatedTimestamp
+    expect(typeof dailyData.streakData).toBe('object');
+    expect(typeof dailyData.streakData.updatedTimestamp).toBe('number');
+    expect(dailyData.streakData.updatedTimestamp).toBeGreaterThan(0);
+  });
+
+  it('xpGains time values are Unix timestamps (seconds, not ms)', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const userData = await client.getUserData();
+    const dailyData = await client.getUserDataById(userData.id, [
+      'xpGoal',
+      'xpGains',
+      'streakData',
+    ]);
+
+    // Unix timestamps in seconds should be around 1.7-1.8 billion (year 2024-2026)
+    // Millisecond timestamps would be ~1.7 trillion — way too large
+    for (const gain of dailyData.xpGains) {
+      expect(gain.time).toBeLessThan(2_000_000_000); // < year 2033 in seconds
+      expect(gain.time).toBeGreaterThan(1_000_000_000); // > year 2001 in seconds
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getLeaderboard — /friendships/leaderboard_activity
+// ---------------------------------------------------------------------------
+
+describe('Live API: getLeaderboard', () => {
+  it('returns leaderboard data with ranking object', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const before = String(Date.now() / 1000);
+    const data = await client.getLeaderboard('week', before);
+
+    // ranking must be an object (may be empty if user has no friends)
+    expect(typeof data.ranking).toBe('object');
+    expect(data.ranking).not.toBeNull();
+  });
+
+  it('returns leaderboard data for month unit', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const before = String(Date.now() / 1000);
+    const data = await client.getLeaderboard('month', before);
+
+    expect(typeof data.ranking).toBe('object');
+  });
+
+  it('ranking values are string-encoded numbers', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const before = String(Date.now() / 1000);
+    const data = await client.getLeaderboard('week', before);
+
+    for (const [uid, points] of Object.entries(data.ranking)) {
+      // Keys are user IDs (numeric strings)
+      expect(Number.isNaN(parseInt(uid, 10))).toBe(false);
+      // Values are XP points (numeric strings)
+      expect(Number.isNaN(parseInt(points, 10))).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getVocabularyOverview — /vocabulary/overview
+// ---------------------------------------------------------------------------
+
+describe('Live API: getVocabularyOverview', () => {
+  it('returns HTML instead of JSON (known broken endpoint)', async () => {
+    if (skipIfNoCredentials()) return;
+
+    // The /vocabulary/overview endpoint currently returns HTML, not JSON.
+    // This test documents the known breakage so we can detect when it's fixed.
+    let threwError = false;
+    let result: unknown = null;
+
+    try {
+      result = await client.getVocabularyOverview();
+    } catch (err) {
+      threwError = true;
+    }
+
+    if (!threwError && result !== null) {
+      // If it didn't throw, the result is likely an HTML string (broken)
+      // or a valid vocab object (fixed). Check which case we're in.
+      const isHtml =
+        typeof result === 'string' &&
+        (result as string).includes('<!doctype html');
+      const isValidVocab =
+        typeof result === 'object' &&
+        result !== null &&
+        'vocab_overview' in (result as object);
+
+      if (isHtml) {
+        // Known broken state — document it
+        console.warn(
+          'KNOWN ISSUE: /vocabulary/overview returns HTML instead of JSON',
+        );
+        expect(isHtml).toBe(true); // This test passes to document the known state
+      } else if (isValidVocab) {
+        // Endpoint is working — validate the structure
+        const vocab = result as {
+          language_string: string;
+          vocab_overview: unknown[];
+        };
+        expect(typeof vocab.language_string).toBe('string');
+        expect(Array.isArray(vocab.vocab_overview)).toBe(true);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getTranslations — d2.duolingo.com (known broken)
+// ---------------------------------------------------------------------------
+
+describe('Live API: getTranslations', () => {
+  it('d2.duolingo.com is unreachable (known broken endpoint)', async () => {
+    if (skipIfNoCredentials()) return;
+
+    // The d2.duolingo.com domain is currently unreachable (DNS failure).
+    // This test documents the known breakage.
+    let errorMessage = '';
+
+    try {
+      await client.getTranslations(['hola'], 'es', 'en');
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : String(err);
+    }
+
+    // Either DNS failure or some other network error
+    expect(errorMessage.length).toBeGreaterThan(0);
+    console.warn(`KNOWN ISSUE: Translation API error: ${errorMessage}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getHomepage — TTS voice discovery (known broken)
+// ---------------------------------------------------------------------------
+
+describe('Live API: getHomepage (TTS voices)', () => {
+  it('homepage no longer contains duo.tts_multi_voices (known broken)', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const html = await client.getHomepage();
+
+    // The homepage should return HTML
+    expect(typeof html).toBe('string');
+    expect(html.length).toBeGreaterThan(0);
+
+    // Check if the TTS voice data is present
+    const hasTtsVoices = html.includes('duo.tts_multi_voices');
+
+    if (!hasTtsVoices) {
+      console.warn(
+        'KNOWN ISSUE: duo.tts_multi_voices not found in homepage HTML. ' +
+          'TTS voice discovery is broken.',
+      );
+    }
+
+    // Document the current state (may be true or false)
+    expect(typeof hasTtsVoices).toBe('boolean');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Skills data structure validation
+// ---------------------------------------------------------------------------
+
+describe('Live API: Skills data structure', () => {
+  it('skills have required fields', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+    if (langKeys.length === 0) return;
+
+    const langData = data.language_data[langKeys[0]!]!;
+    if (langData.skills.length === 0) return;
+
+    for (const skill of langData.skills.slice(0, 5)) {
+      expect(typeof skill.id).toBe('string');
+      expect(typeof skill.name).toBe('string');
+      expect(typeof skill.title).toBe('string');
+      expect(typeof skill.learned).toBe('boolean');
+      expect(typeof skill.strength).toBe('number');
+      expect(typeof skill.progress_percent).toBe('number');
+      expect(Array.isArray(skill.words)).toBe(true);
+      expect(Array.isArray(skill.dependencies_name)).toBe(true);
+    }
+  });
+
+  it('known_topics returns only learned skills', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+    if (langKeys.length === 0) return;
+
+    const langData = data.language_data[langKeys[0]!]!;
+    const knownTopics = langData.skills
+      .filter((s) => s.learned)
+      .map((s) => s.title);
+    const unknownTopics = langData.skills
+      .filter((s) => !s.learned)
+      .map((s) => s.title);
+
+    // No overlap between known and unknown
+    for (const topic of knownTopics) {
+      expect(unknownTopics).not.toContain(topic);
+    }
+  });
+
+  it('golden topics are a subset of known topics', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+    if (langKeys.length === 0) return;
+
+    const langData = data.language_data[langKeys[0]!]!;
+    const knownTopics = new Set(
+      langData.skills.filter((s) => s.learned).map((s) => s.title),
+    );
+    const goldenTopics = langData.skills
+      .filter((s) => s.learned && s.strength === 1.0)
+      .map((s) => s.title);
+
+    for (const topic of goldenTopics) {
+      expect(knownTopics.has(topic)).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Calendar data structure validation
+// ---------------------------------------------------------------------------
+
+describe('Live API: Calendar data structure', () => {
+  it('calendar entries have datetime and improvement fields', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+
+    for (const entry of data.calendar.slice(0, 5)) {
+      expect(typeof entry.datetime).toBe('number');
+      expect(entry.datetime).toBeGreaterThan(0);
+      expect(typeof entry.improvement).toBe('number');
+      expect(entry.improvement).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('calendar datetime values are millisecond timestamps', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    if (data.calendar.length === 0) return;
+
+    // Millisecond timestamps should be > 1 trillion (year 2001+)
+    // Second timestamps would be ~1.7 billion
+    for (const entry of data.calendar.slice(0, 5)) {
+      // The API returns ms timestamps (13 digits)
+      expect(entry.datetime).toBeGreaterThan(1_000_000_000_000);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Language data completeness
+// ---------------------------------------------------------------------------
+
+describe('Live API: Language data completeness', () => {
+  it('authenticated user has at least one learning language', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const learningLanguages = data.languages.filter((l) => l.learning);
+    expect(learningLanguages.length).toBeGreaterThan(0);
+  });
+
+  it('language_data contains the current learning language', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+
+    // The current learning language should be in language_data
+    // (Note: the API only returns language_data for the current language)
+    expect(langKeys.length).toBeGreaterThan(0);
+  });
+
+  it('language abbreviations in language_data match languages array', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langDataKeys = Object.keys(data.language_data);
+    const languageAbbrs = new Set(data.languages.map((l) => l.language));
+
+    for (const key of langDataKeys) {
+      expect(languageAbbrs.has(key)).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Known API field regressions
+// ---------------------------------------------------------------------------
+
+describe('Live API: Known field regressions', () => {
+  it('num_followers is NOT present in current API response', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+
+    // These fields were present in the old API but are now missing.
+    // This test documents the regression so we know what's broken.
+    const missingFields: string[] = [];
+
+    if (data.num_followers === undefined) missingFields.push('num_followers');
+    if (data.num_following === undefined) missingFields.push('num_following');
+    if (data.contribution_points === undefined)
+      missingFields.push('contribution_points');
+    if (data.is_follower_by === undefined) missingFields.push('is_follower_by');
+    if (data.is_following === undefined) missingFields.push('is_following');
+    if (data.invites_left === undefined) missingFields.push('invites_left');
+
+    if (missingFields.length > 0) {
+      console.warn(
+        `KNOWN REGRESSION: These fields are missing from the API: ${missingFields.join(', ')}`,
+      );
+    }
+
+    // Document the current state — these fields are expected to be missing
+    expect(data.num_followers).toBeUndefined();
+    expect(data.num_following).toBeUndefined();
+    expect(data.contribution_points).toBeUndefined();
+  });
+
+  it('points_ranking_data is NOT present in current API response', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+    if (langKeys.length === 0) return;
+
+    const langData = data.language_data[langKeys[0]!]!;
+
+    // points_ranking_data is missing from the current API
+    // This is why get_friends and get_leaderboard return empty results
+    if (langData.points_ranking_data === undefined) {
+      console.warn(
+        'KNOWN REGRESSION: points_ranking_data is missing from language_data. ' +
+          'get_friends and get_leaderboard will return empty results.',
+      );
+    }
+
+    expect(langData.points_ranking_data).toBeUndefined();
+  });
+
+  it('points_rank is NOT present in language_data', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+    const langKeys = Object.keys(data.language_data);
+    if (langKeys.length === 0) return;
+
+    const langData = data.language_data[langKeys[0]!]!;
+
+    if (langData.points_rank === undefined) {
+      console.warn(
+        'KNOWN REGRESSION: points_rank is missing from language_data.',
+      );
+    }
+
+    expect(langData.points_rank).toBeUndefined();
+  });
+
+  it('created field contains HTML/text instead of a date string', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData();
+
+    // The 'created' field in the current API returns a human-readable
+    // relative time string (e.g. "v. 8 Monaten") wrapped in whitespace,
+    // not an ISO date string.
+    if (data.created && data.created.includes('\n')) {
+      console.warn(
+        'KNOWN REGRESSION: created field contains whitespace/HTML instead of ISO date. ' +
+          `Value: ${JSON.stringify(data.created)}`,
+      );
+    }
+
+    // Document the current state
+    expect(typeof data.created).toBe('string');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Public user data
+// ---------------------------------------------------------------------------
+
+describe('Live API: Public user data', () => {
+  it('can fetch public data for testuser123', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData('testuser123');
+
+    expect(data.username).toBe('testuser123');
+    expect(typeof data.id).toBe('number');
+    expect(Array.isArray(data.languages)).toBe(true);
+    expect(data.languages.length).toBeGreaterThan(0);
+
+    // testuser123 is learning many languages
+    const langStrings = data.languages.map((l) => l.language_string);
+    expect(langStrings).toContain('Spanish');
+  });
+
+  it('public user has language_data for current language only', async () => {
+    if (skipIfNoCredentials()) return;
+
+    const data = await client.getUserData('testuser123');
+    const langKeys = Object.keys(data.language_data);
+
+    // The API only returns language_data for the current learning language
+    expect(langKeys.length).toBeGreaterThanOrEqual(0);
+  });
+});

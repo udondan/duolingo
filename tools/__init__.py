@@ -1,1 +1,0 @@
-"""Duolingo MCP tool modules."""
