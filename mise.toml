@@ -71,7 +71,7 @@ depends = ["build"]
 
 [tasks.inspect]
 description = "Launch the MCP inspector UI (reads credentials from .env)"
-run = "npx @modelcontextprotocol/inspector --config inspector.json --server duolingo"
+run = "npx @modelcontextprotocol/inspector -e DUOLINGO_USERNAME=$DUOLINGO_USERNAME -e DUOLINGO_JWT=$DUOLINGO_JWT node dist/server.js"
 depends = ["build"]
 
 
