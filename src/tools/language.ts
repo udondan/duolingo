@@ -195,8 +195,8 @@ export function registerLanguageTools(server: McpServer): void {
     topics: string[],
     fmt: string,
   ): string {
-    if (topics.length === 0) return `No ${title.toLowerCase()} found.`;
     if (fmt === 'json') return JSON.stringify(topics, null, 2);
+    if (topics.length === 0) return `No ${title.toLowerCase()} found.`;
     const lines = [`# ${title}`, ''];
     for (const topic of [...topics].sort()) {
       lines.push(`- ${topic}`);
@@ -447,6 +447,12 @@ export function registerLanguageTools(server: McpServer): void {
 
         const words = [...wordSet].sort();
 
+        if (response_format === 'json') {
+          return {
+            content: [{ type: 'text', text: JSON.stringify(words, null, 2) }],
+          };
+        }
+
         if (words.length === 0) {
           return {
             content: [
@@ -455,12 +461,6 @@ export function registerLanguageTools(server: McpServer): void {
                 text: `No known words found for language '${language_abbr}'.`,
               },
             ],
-          };
-        }
-
-        if (response_format === 'json') {
-          return {
-            content: [{ type: 'text', text: JSON.stringify(words, null, 2) }],
           };
         }
 
@@ -518,6 +518,14 @@ export function registerLanguageTools(server: McpServer): void {
             (a, b) => (a.dependency_order ?? 0) - (b.dependency_order ?? 0),
           );
 
+        if (response_format === 'json') {
+          return {
+            content: [
+              { type: 'text', text: JSON.stringify(learnedSkills, null, 2) },
+            ],
+          };
+        }
+
         if (learnedSkills.length === 0) {
           return {
             content: [
@@ -525,14 +533,6 @@ export function registerLanguageTools(server: McpServer): void {
                 type: 'text',
                 text: `No learned skills found for language '${language_abbr}'.`,
               },
-            ],
-          };
-        }
-
-        if (response_format === 'json') {
-          return {
-            content: [
-              { type: 'text', text: JSON.stringify(learnedSkills, null, 2) },
             ],
           };
         }
