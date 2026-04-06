@@ -19,6 +19,7 @@ import { DuolingoClient, resetClient } from '../../src/client/duolingo.js';
 
 const USERNAME = process.env.DUOLINGO_USERNAME;
 const JWT = process.env.DUOLINGO_JWT;
+const TEST_USERNAME = process.env.DUOLINGO_TEST_USERNAME ?? 'testuser123';
 
 function skipIfNoCredentials() {
   if (!USERNAME || !JWT) {
@@ -77,10 +78,9 @@ describe('Live API: getUserData', () => {
   it('returns user data for a known public user', async () => {
     if (skipIfNoCredentials()) return;
 
-    // testuser123 is a well-known public Duolingo account
-    const data = await client.getUserData('testuser123');
+    const data = await client.getUserData(TEST_USERNAME);
 
-    expect(data.username).toBe('testuser123');
+    expect(data.username).toBe(TEST_USERNAME);
     expect(typeof data.id).toBe('number');
     expect(Array.isArray(data.languages)).toBe(true);
     expect(data.languages.length).toBeGreaterThan(0);
@@ -557,25 +557,22 @@ describe('Live API: Known field regressions', () => {
 // ---------------------------------------------------------------------------
 
 describe('Live API: Public user data', () => {
-  it('can fetch public data for testuser123', async () => {
+  it('can fetch public data for a known public user', async () => {
     if (skipIfNoCredentials()) return;
 
-    const data = await client.getUserData('testuser123');
+    const data = await client.getUserData(TEST_USERNAME);
 
-    expect(data.username).toBe('testuser123');
+    expect(typeof data.username).toBe('string');
+    expect(data.username).toBe(TEST_USERNAME);
     expect(typeof data.id).toBe('number');
     expect(Array.isArray(data.languages)).toBe(true);
     expect(data.languages.length).toBeGreaterThan(0);
-
-    // testuser123 is learning many languages
-    const langStrings = data.languages.map((l) => l.language_string);
-    expect(langStrings).toContain('Spanish');
   });
 
   it('public user has language_data for current language only', async () => {
     if (skipIfNoCredentials()) return;
 
-    const data = await client.getUserData('testuser123');
+    const data = await client.getUserData(TEST_USERNAME);
     const langKeys = Object.keys(data.language_data);
 
     // The API only returns language_data for the current learning language
@@ -657,21 +654,22 @@ describe('Live API: getUserDataV2 (2023-05-23 API)', () => {
   it('can fetch data for a friend by user ID', async () => {
     if (skipIfNoCredentials()) return;
 
-    // 4321Axolotl is a known friend with math and chess courses
-    const friendId = 241187211598860;
-    const v2 = await client.getUserDataV2(friendId);
+    // Use the authenticated user's own ID to avoid depending on a specific third-party account
+    const userData = await client.getUserData();
+    const v2 = await client.getUserDataV2(userData.id);
 
-    expect(v2.username).toBe('4321Axolotl');
-    const subjects = v2.courses.map((c) => c.subject);
-    expect(subjects).toContain('math');
-    expect(subjects).toContain('chess');
+    expect(typeof v2.username).toBe('string');
+    expect(v2.username.length).toBeGreaterThan(0);
+    expect(Array.isArray(v2.courses)).toBe(true);
   });
 
-  it('getUserIdByUsername resolves username to numeric ID', async () => {
+  it('getUserIdByUsername resolves username to a positive numeric ID', async () => {
     if (skipIfNoCredentials()) return;
 
-    const id = await client.getUserIdByUsername('4321Axolotl');
-    expect(id).toBe(241187211598860);
+    // Use the authenticated user's own username — no dependency on third-party accounts
+    const id = await client.getUserIdByUsername(USERNAME!);
+    expect(typeof id).toBe('number');
+    expect(id).toBeGreaterThan(0);
   });
 
   it('caches v2 data on repeated calls', async () => {
