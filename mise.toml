@@ -85,10 +85,12 @@ depends = ["build"]
 [tasks."docker:build"]
 description = "Build the Docker image"
 run = "docker build -t mcp/duolingo-mcp ."
+depends = ["build"]
 
 [tasks."docker:register"]
 description = "Register the Docker image in Docker MCP catalog"
 run = "docker mcp catalog import ./docker-mcp.yml"
+depends = ["docker:build"]
 
 [tasks.docker]
 description = "Build and register the Docker image"
