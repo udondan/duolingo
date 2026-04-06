@@ -1,3 +1,6 @@
+[settings]
+jobs = 1
+
 [tools]
 node = "lts"
 
@@ -66,6 +69,12 @@ description = "Start the built MCP server"
 run = "npm start"
 depends = ["build"]
 
+[tasks.inspect]
+description = "Launch the MCP inspector UI (reads credentials from .env)"
+run = "npx @modelcontextprotocol/inspector --config inspector.json --server duolingo"
+depends = ["build"]
+
+
 # ── Docker tasks ─────────────────────────────────────────────────────────────
 
 [tasks."docker:build"]
@@ -79,11 +88,6 @@ run = "docker mcp catalog import ./docker-mcp.yml"
 [tasks.docker]
 description = "Build and register the Docker image"
 depends = ["docker:build", "docker:register"]
-
-[tasks.inspect]
-description = "Launch the MCP inspector UI"
-run = "npx @modelcontextprotocol/inspector node dist/server.js"
-depends = ["build"]
 
 # ── Composite tasks ───────────────────────────────────────────────────────────
 

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "duolingo": {
+      "command": "node",
+      "args": ["dist/server.js"],
+      "env": {
+        "DUOLINGO_USERNAME": "${DUOLINGO_USERNAME}",
+        "DUOLINGO_JWT": "${DUOLINGO_JWT}"
+      }
+    }
+  }
+}
