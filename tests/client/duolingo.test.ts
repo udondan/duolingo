@@ -304,6 +304,99 @@ describe('DuolingoClient', () => {
       expect(data.ranking).toEqual({ '99001': '2000', '12345': '1500' });
     });
   });
+
+  // -------------------------------------------------------------------------
+  // getLanguageVoices / extractVoiceFromTtsUrl
+  // -------------------------------------------------------------------------
+  describe('getLanguageVoices', () => {
+    it('extracts voice names from challenge tts URLs', async () => {
+      // TTS URL format: https://<cdn>/<voiceName>/<hash>
+      const mockSession = {
+        challenges: [
+          {
+            prompt: 'hola',
+            tts: 'https://d1vq87e9lcf771.cloudfront.net/beaes/abc123',
+          },
+          {
+            prompt: 'gracias',
+            tts: 'https://d1vq87e9lcf771.cloudfront.net/juniores/def456',
+          },
+          {
+            prompt: 'adios',
+            tts: 'https://d1vq87e9lcf771.cloudfront.net/beaes/ghi789', // duplicate voice
+          },
+        ],
+        ttsAnnotations: {},
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: mockSession }],
+        ]),
+      );
+      const voices = await client.getLanguageVoices('es');
+      expect(voices).toContain('beaes');
+      expect(voices).toContain('juniores');
+      expect(voices).toHaveLength(2); // deduped
+    });
+
+    it('extracts voice names from ttsAnnotations keys', async () => {
+      const mockSession = {
+        challenges: [],
+        ttsAnnotations: {
+          'https://d1vq87e9lcf771.cloudfront.net/vikrames/aaa111': {},
+          'https://d1vq87e9lcf771.cloudfront.net/oscares/bbb222': {},
+        },
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: mockSession }],
+        ]),
+      );
+      const voices = await client.getLanguageVoices('es');
+      expect(voices).toContain('vikrames');
+      expect(voices).toContain('oscares');
+    });
+
+    it('returns empty array when session is unavailable', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 500, data: {} }],
+        ]),
+      );
+      const voices = await client.getLanguageVoices('es');
+      expect(voices).toEqual([]);
+    });
+
+    it('caches voice results on repeated calls', async () => {
+      const mockSession = {
+        challenges: [
+          {
+            prompt: 'hola',
+            tts: 'https://d1vq87e9lcf771.cloudfront.net/beaes/abc123',
+          },
+        ],
+        ttsAnnotations: {},
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: mockSession }],
+        ]),
+      );
+      const mockPost = (
+        client as unknown as { http: { post: ReturnType<typeof vi.fn> } }
+      ).http.post;
+
+      await client.getLanguageVoices('es');
+      await client.getLanguageVoices('es'); // second call should use cache
+
+      // Only one POST to sessions (first call), second uses cache
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

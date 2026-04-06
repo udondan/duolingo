@@ -58,8 +58,8 @@ DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt duolingo-mcp
 **Option C — clone and build from source:**
 
 ```bash
-git clone https://github.com/udondan/duolingo-mcp.git
-cd duolingo-mcp
+git clone https://github.com/udondan/duolingo.git
+cd duolingo
 npm install && npm run build
 node dist/server.js
 ```
@@ -315,8 +315,8 @@ try {
 ## Development
 
 ```bash
-git clone https://github.com/udondan/duolingo-mcp.git
-cd duolingo-mcp
+git clone https://github.com/udondan/duolingo.git
+cd duolingo
 npm install
 
 # Build
