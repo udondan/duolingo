@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ci:
+    name: Lint, typecheck & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+        env:
+          DUOLINGO_USERNAME: ${{ secrets.DUOLINGO_USERNAME }}
+          DUOLINGO_JWT: ${{ secrets.DUOLINGO_JWT }}
+          DUOLINGO_TEST_USERNAME: ${{ secrets.DUOLINGO_TEST_USERNAME }}
