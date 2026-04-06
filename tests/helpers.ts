@@ -9,6 +9,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 /**
  * Call a registered MCP tool by name via the public MCP wire protocol.
  * Uses InMemoryTransport to avoid any stdio or network I/O.
+ * Both the client and server transports are closed after each call.
  */
 export async function callTool(
   server: McpServer,
@@ -31,5 +32,6 @@ export async function callTool(
     return content.map((c) => c.text).join('');
   } finally {
     await client.close();
+    await serverTransport.close();
   }
 }

@@ -178,6 +178,7 @@ async function createMcpPair(): Promise<{
     client,
     cleanup: async () => {
       await client.close();
+      await serverTransport.close();
     },
   };
 }
