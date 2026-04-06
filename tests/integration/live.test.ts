@@ -19,7 +19,7 @@ import { DuolingoClient, resetClient } from '../../src/client/duolingo.js';
 
 const USERNAME = process.env.DUOLINGO_USERNAME;
 const JWT = process.env.DUOLINGO_JWT;
-const TEST_USERNAME = process.env.DUOLINGO_TEST_USERNAME ?? 'testuser123';
+const TEST_USERNAME = process.env.DUOLINGO_TEST_USERNAME || 'testuser123';
 
 function skipIfNoCredentials() {
   if (!USERNAME || !JWT) {
