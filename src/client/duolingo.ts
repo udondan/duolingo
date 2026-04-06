@@ -379,7 +379,15 @@ export class DuolingoClient {
       resp = await this.http.post<DuolingoSessionResponse>(url, data);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        return null; // Non-fatal
+        const status = err.response.status;
+        // Surface auth errors so callers know credentials are invalid
+        if (status === 401 || status === 403) {
+          throw new DuolingoAuthError(
+            'Authentication failed while starting a practice session.',
+          );
+        }
+        // Other HTTP errors (e.g. 404, 500) are non-fatal for voice discovery
+        return null;
       }
       throw err;
     }

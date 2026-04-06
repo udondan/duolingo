@@ -33,7 +33,7 @@ const MOCK_USER_DATA: DuolingoUserData = {
   notify_comment: true,
   deactivated: false,
   tracking_properties: { num_followers: 10, num_following: 5 },
-  calendar: [{ datetime: 1700000000, improvement: 10 }],
+  calendar: [{ datetime: 1699920000000, improvement: 10 }], // 2023-11-14
   languages: [
     {
       language: 'fr',
@@ -59,7 +59,7 @@ const MOCK_USER_DATA: DuolingoUserData = {
       points: 1500,
       fluency_score: 0.35,
       level: 5,
-      calendar: [{ datetime: 1700000000, improvement: 10 }],
+      calendar: [{ datetime: 1699920000000, improvement: 10 }], // 2023-11-14
       skills: [
         {
           id: 'skill-1',

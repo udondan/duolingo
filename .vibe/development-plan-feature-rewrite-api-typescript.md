@@ -94,9 +94,9 @@ crashes when `points_ranking_data` is absent, broken leaderboard, etc.). The rew
 - [x] Phase 11: Cleanup — Python files removed, README updated, .gitignore updated
 
 ### Completed
-- [x] All 27 MCP tools implemented in TypeScript
+- [x] All 25 MCP tools implemented in TypeScript
 - [x] All known Python bugs fixed
-- [x] duolingo_set_username tool implemented (was missing from Python version)
+- [x] Read-only tools only — write/action tools removed (set_username, buy_item, etc.)
 - [x] 87 unit tests passing (0 failures)
 - [x] TypeScript strict mode, clean build
 - [x] Python files completely removed

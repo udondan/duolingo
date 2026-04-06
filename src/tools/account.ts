@@ -184,13 +184,17 @@ export function registerAccountTools(server: McpServer): void {
       try {
         const client = getClient();
 
-        // Resolve user ID for the v2 API
+        // Fetch legacy user data (has daily_goal) and v2 data (has streak details)
         let userId: number;
+        let dailyGoal: number | null;
         if (!username) {
           const userData = await client.getUserData();
           userId = userData.id;
+          dailyGoal = userData.daily_goal ?? null;
         } else {
           userId = await client.getUserIdByUsername(username);
+          const userData = await client.getUserData(username);
+          dailyGoal = userData.daily_goal ?? null;
         }
 
         const v2 = await client.getUserDataV2(userId);
@@ -199,7 +203,7 @@ export function registerAccountTools(server: McpServer): void {
 
         const info = {
           site_streak: v2.streak,
-          daily_goal: streakData.xpGoal ?? null,
+          daily_goal: dailyGoal,
           streak_extended_today:
             current !== null
               ? current.lastExtendedDate ===

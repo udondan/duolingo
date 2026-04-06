@@ -3,30 +3,33 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
-type ToolRegistry = Record<
-  string,
-  {
-    handler: (args: unknown) => Promise<{
-      content: { type: string; text: string }[];
-    }>;
-  }
->;
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 /**
- * Call a registered MCP tool by name and return the first text content.
+ * Call a registered MCP tool by name via the public MCP wire protocol.
+ * Uses InMemoryTransport to avoid any stdio or network I/O.
  */
 export async function callTool(
   server: McpServer,
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> = {},
 ): Promise<string> {
-  const registry = (server as unknown as { _registeredTools: ToolRegistry })
-    ._registeredTools;
+  const [serverTransport, clientTransport] =
+    InMemoryTransport.createLinkedPair();
 
-  const tool = registry[toolName];
-  if (!tool) throw new Error(`Tool '${toolName}' not found`);
+  const client = new Client({ name: 'test-client', version: '1.0.0' });
 
-  const result = await tool.handler(args);
-  return result.content[0]?.text ?? '';
+  await Promise.all([
+    server.connect(serverTransport),
+    client.connect(clientTransport),
+  ]);
+
+  try {
+    const result = await client.callTool({ name: toolName, arguments: args });
+    const content = result.content as { type: string; text: string }[];
+    return content.map((c) => c.text).join('');
+  } finally {
+    await client.close();
+  }
 }
