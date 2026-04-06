@@ -284,15 +284,6 @@ const url = await client.buildAudioUrl('hola', 'es');
 const urlWithVoice = await client.buildAudioUrl('hola', 'es', 'beaes');
 ```
 
-#### Translations
-
-> **Note:** The Duolingo dictionary endpoint (`d2.duolingo.com`) is currently unreachable. The `getTranslations` method is available in the library but may not return results.
-
-```typescript
-const translations = await client.getTranslations(['hola', 'gracias'], 'es', 'en');
-// { hola: ['hello', 'hi'], gracias: ['thank you', 'thanks'] }
-```
-
 #### Error Handling
 
 ```typescript

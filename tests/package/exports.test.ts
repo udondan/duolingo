@@ -82,7 +82,6 @@ describe('Package exports: runtime values', () => {
         'getFollowing',
         'getFollowers',
         'getLeaderboard',
-        'getTranslations',
         'getShopItems',
         'getHealth',
         'getCurrencies',
@@ -261,7 +260,7 @@ describe('Package exports: type shapes (compile-time)', () => {
   it('DuolingoStreakGoalCurrentResponse has hasActiveGoal', () => {
     const _check = (r: DuolingoStreakGoalCurrentResponse) => {
       const _hasActiveGoal: boolean = r.hasActiveGoal;
-      const _goal: DuolingoStreakGoal = r.streakGoal;
+      const _goal: DuolingoStreakGoal | null = r.streakGoal;
     };
     expect(typeof _check).toBe('function');
   });

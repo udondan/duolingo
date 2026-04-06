@@ -85,7 +85,6 @@ export interface DuolingoUserData {
   notify_comment: boolean;
   deactivated: boolean;
   tts_base_url?: string;
-  dict_base_url?: string;
   tracking_properties?: DuolingoTrackingProperties;
   calendar: DuolingoCalendarEntry[];
   languages: DuolingoLanguage[];

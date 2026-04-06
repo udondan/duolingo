@@ -41,11 +41,6 @@ const BASE_URL = 'https://www.duolingo.com';
  */
 const FALLBACK_TTS_BASE_URL = 'https://d7mj4aqfscim2.cloudfront.net/';
 
-/** Maximum words per translation request (Duolingo API limit). */
-const TRANSLATION_WORD_COUNT_LIMIT = 2000;
-/** Maximum JSON length per translation request (Duolingo API limit). */
-const TRANSLATION_JSON_LIMIT = 12800;
-
 export class DuolingoClient {
   private readonly http: AxiosInstance;
   private readonly username: string;
@@ -293,32 +288,6 @@ export class DuolingoClient {
   }
 
   /**
-   * Get translations for a list of words.
-   * Automatically segments large word lists to stay within API limits.
-   */
-  async getTranslations(
-    words: string[],
-    source: string,
-    target: string,
-  ): Promise<Record<string, string[]>> {
-    const userData = await this.getUserData();
-    const dictBaseUrl = this.normalizeDictBaseUrl(userData.dict_base_url);
-
-    const segments = this.segmentWordList(words);
-    const results: Record<string, string[]> = {};
-    for (const segment of segments) {
-      const segmentResults = await this.getRawTranslations(
-        segment,
-        source,
-        target,
-        dictBaseUrl,
-      );
-      Object.assign(results, segmentResults);
-    }
-    return results;
-  }
-
-  /**
    * Get the TTS base URL for the authenticated user.
    * Falls back to the known CDN URL if not present in user data.
    */
@@ -511,15 +480,6 @@ export class DuolingoClient {
     return url.endsWith('/') ? url : `${url}/`;
   }
 
-  /**
-   * Normalize the dict base URL to use HTTPS.
-   * The API returns http://d2.duolingo.com/ — upgrade to HTTPS.
-   */
-  private normalizeDictBaseUrl(raw?: string): string {
-    if (!raw) return 'https://d2.duolingo.com';
-    return raw.replace(/^http:\/\//, 'https://').replace(/\/$/, '');
-  }
-
   private addToVoiceUrlDict(
     dict: Map<string, Set<string>>,
     word: string,
@@ -553,42 +513,6 @@ export class DuolingoClient {
         }
       }
     }
-  }
-
-  private segmentWordList(words: string[]): string[][] {
-    const isValid = (list: string[]): boolean =>
-      list.length <= TRANSLATION_WORD_COUNT_LIMIT &&
-      JSON.stringify(list).length <= TRANSLATION_JSON_LIMIT;
-
-    if (isValid(words)) return [words];
-
-    const segments: string[][] = [];
-    let segment: string[] = [];
-    for (const word of words) {
-      if (!isValid([...segment, word])) {
-        if (segment.length === 0) {
-          // Single word exceeds limits — skip it rather than emitting an empty segment
-          continue;
-        }
-        segments.push(segment);
-        segment = [];
-      }
-      segment.push(word);
-    }
-    if (segment.length > 0) segments.push(segment);
-    return segments;
-  }
-
-  private async getRawTranslations(
-    words: string[],
-    source: string,
-    target: string,
-    dictBaseUrl: string,
-  ): Promise<Record<string, string[]>> {
-    const wordParam = JSON.stringify(words);
-    const url = `${dictBaseUrl}/api/1/dictionary/hints/${encodeURIComponent(source)}/${encodeURIComponent(target)}?tokens=${encodeURIComponent(wordParam)}`;
-    const resp = await this.http.get<Record<string, string[]>>(url);
-    return resp.data;
   }
 
   private async makeRequest<T>(url: string, data?: unknown): Promise<T> {

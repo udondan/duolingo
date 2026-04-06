@@ -33,7 +33,6 @@ const MOCK_USER_DATA: DuolingoUserData = {
   notify_comment: true,
   deactivated: false,
   tracking_properties: { num_followers: 10, num_following: 5 },
-  dict_base_url: 'http://d2.duolingo.com/',
   calendar: [{ datetime: 1700000000, improvement: 10 }],
   languages: [
     {
@@ -303,59 +302,6 @@ describe('DuolingoClient', () => {
       );
       const data = await client.getLeaderboard('week', '1234567890');
       expect(data.ranking).toEqual({ '99001': '2000', '12345': '1500' });
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // getTranslations
-  // -------------------------------------------------------------------------
-  describe('getTranslations', () => {
-    it('fetches translations for words', async () => {
-      const mockTranslations = {
-        bonjour: ['hello', 'good morning'],
-        merci: ['thank you', 'thanks'],
-      };
-      // getTranslations now calls getUserData first to get dict_base_url
-      const userDataWithDict = {
-        ...MOCK_USER_DATA,
-        dict_base_url: 'http://d2.duolingo.com/',
-      };
-      const client = makeClientWithMockHttp(
-        new Map([
-          ['/users/testuser', { status: 200, data: userDataWithDict }],
-          ['dictionary/hints', { status: 200, data: mockTranslations }],
-        ]),
-      );
-      const result = await client.getTranslations(
-        ['bonjour', 'merci'],
-        'fr',
-        'en',
-      );
-      expect(result.bonjour).toEqual(['hello', 'good morning']);
-      expect(result.merci).toEqual(['thank you', 'thanks']);
-    });
-
-    it('segments large word lists and makes multiple requests', async () => {
-      const userDataWithDict = {
-        ...MOCK_USER_DATA,
-        dict_base_url: 'http://d2.duolingo.com/',
-      };
-      const client = makeClientWithMockHttp(
-        new Map([
-          ['/users/testuser', { status: 200, data: userDataWithDict }],
-          ['dictionary/hints', { status: 200, data: {} }],
-        ]),
-      );
-      const mockGet = (
-        client as unknown as { http: { get: ReturnType<typeof vi.fn> } }
-      ).http.get;
-
-      // 2500 words exceeds the 2000-word limit
-      const words = Array.from({ length: 2500 }, (_, i) => `word${i}`);
-      await client.getTranslations(words, 'fr', 'en');
-
-      // 1 call for getUserData + 3 calls for segments (2500 words → 3 segments)
-      expect(mockGet).toHaveBeenCalledTimes(4);
     });
   });
 });
