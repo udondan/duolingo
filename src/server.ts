@@ -31,7 +31,7 @@ const server = new McpServer(
     instructions:
       'This server provides access to Duolingo learning data via the unofficial ' +
       'Duolingo API. You can query user profiles, streak information, language ' +
-      'progress, vocabulary, topics, translations, and more. ' +
+      'progress, topics, words, TTS audio, and more. ' +
       'Authentication requires DUOLINGO_USERNAME and DUOLINGO_JWT environment variables. ' +
       'To get your JWT token: log in to Duolingo in a browser, open the developer ' +
       'console, and run: ' +

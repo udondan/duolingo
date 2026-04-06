@@ -560,7 +560,7 @@ export function registerLanguageTools(server: McpServer): void {
       title: 'Get Duolingo Language TTS Voices',
       description:
         'Get the available text-to-speech (TTS) voices for a language. ' +
-        'Returns a list of voice names. Always includes at least one voice.',
+        'Returns a list of voice names.',
       inputSchema: {
         language_abbr: OptionalLanguageAbbrSchema,
         response_format: ResponseFormatSchema,

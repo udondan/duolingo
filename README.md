@@ -110,9 +110,9 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 | `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today |
 | `duolingo_get_languages` | Languages being learned (full names or abbreviations) |
 | `duolingo_get_courses` | All courses including Math, Chess, and Music with XP per course |
-| `duolingo_get_friends` | Users a given user follows, with total XP (any public user) |
-| `duolingo_get_calendar` | Recent activity calendar (overall or per language) |
-| `duolingo_get_leaderboard` | Friends sorted by XP for week or month (any public user) |
+| `duolingo_get_friends` | Users the authenticated user follows, with total XP |
+| `duolingo_get_calendar` | Recent activity calendar for the current course (~last 2 weeks) |
+| `duolingo_get_leaderboard` | Authenticated user's friends sorted by XP for week or month |
 | `duolingo_get_shop_items` | Full shop catalogue with prices and item types |
 | `duolingo_get_health` | Current hearts count, max hearts, refill timing |
 | `duolingo_get_currencies` | Gem and lingot balances |
@@ -130,7 +130,6 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 | `duolingo_get_reviewable_topics` | Learned but not fully mastered topics |
 | `duolingo_get_known_words` | Set of known words for a language |
 | `duolingo_get_learned_skills` | Full skill objects sorted by learning order |
-| `duolingo_get_translations` | Translate a list of words between two languages |
 | `duolingo_get_language_voices` | Available TTS voice names for a language |
 | `duolingo_get_audio_url` | Pronunciation audio URL for a word |
 
@@ -159,7 +158,8 @@ import { DuolingoClient } from '@udondan/duolingo';
 const client = new DuolingoClient('your_username', 'your_jwt_token');
 
 // Get all courses including Math, Chess, and Music
-const v2 = await client.getUserDataV2(userId);
+const userData = await client.getUserData();
+const v2 = await client.getUserDataV2(userData.id);
 for (const course of v2.courses) {
   console.log(`${course.subject}: ${course.xp} XP`);
 }
@@ -285,6 +285,8 @@ const urlWithVoice = await client.buildAudioUrl('hola', 'es', 'beaes');
 ```
 
 #### Translations
+
+> **Note:** The Duolingo dictionary endpoint (`d2.duolingo.com`) is currently unreachable. The `getTranslations` method is available in the library but may not return results.
 
 ```typescript
 const translations = await client.getTranslations(['hola', 'gracias'], 'es', 'en');

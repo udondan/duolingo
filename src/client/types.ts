@@ -6,8 +6,8 @@
 export interface DuolingoCalendarEntry {
   datetime: number;
   improvement: number;
-  event_type: string | null;
-  skill_id: string | null;
+  event_type?: string | null;
+  skill_id?: string | null;
 }
 
 export interface DuolingoSkill {
@@ -196,7 +196,7 @@ export interface DuolingoStreakGoal {
 
 export interface DuolingoStreakGoalCurrentResponse {
   hasActiveGoal: boolean;
-  streakGoal: DuolingoStreakGoal;
+  streakGoal: DuolingoStreakGoal | null;
 }
 
 export interface DuolingoStreakGoalOption {

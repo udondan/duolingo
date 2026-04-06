@@ -1,12 +1,12 @@
 /**
- * duolingo-mcp — public library API
+ * @udondan/duolingo — public library API
  *
  * Use this entry point when importing the package as a library:
  *
- *   import { DuolingoClient } from 'duolingo-mcp';
+ *   import { DuolingoClient } from '@udondan/duolingo';
  *
  * For the MCP server binary, see the `duolingo-mcp` CLI or the
- * `duolingo-mcp/server` export.
+ * `@udondan/duolingo/server` export.
  */
 
 // Client class and singleton helpers

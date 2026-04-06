@@ -557,8 +557,8 @@ export class DuolingoClient {
 
   private segmentWordList(words: string[]): string[][] {
     const isValid = (list: string[]): boolean =>
-      list.length < TRANSLATION_WORD_COUNT_LIMIT &&
-      JSON.stringify(list).length < TRANSLATION_JSON_LIMIT;
+      list.length <= TRANSLATION_WORD_COUNT_LIMIT &&
+      JSON.stringify(list).length <= TRANSLATION_JSON_LIMIT;
 
     if (isValid(words)) return [words];
 
@@ -566,6 +566,10 @@ export class DuolingoClient {
     let segment: string[] = [];
     for (const word of words) {
       if (!isValid([...segment, word])) {
+        if (segment.length === 0) {
+          // Single word exceeds limits — skip it rather than emitting an empty segment
+          continue;
+        }
         segments.push(segment);
         segment = [];
       }

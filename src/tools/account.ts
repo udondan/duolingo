@@ -858,7 +858,7 @@ export function registerAccountTools(server: McpServer): void {
           };
         }
 
-        if (!data.hasActiveGoal) {
+        if (!data.hasActiveGoal || !data.streakGoal) {
           return {
             content: [{ type: 'text', text: 'No active streak goal.' }],
           };
