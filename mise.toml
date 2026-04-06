@@ -66,6 +66,25 @@ description = "Start the built MCP server"
 run = "npm start"
 depends = ["build"]
 
+# ── Docker tasks ─────────────────────────────────────────────────────────────
+
+[tasks."docker:build"]
+description = "Build the Docker image"
+run = "docker build -t mcp/duolingo-mcp ."
+
+[tasks."docker:register"]
+description = "Register the Docker image in Docker MCP catalog"
+run = "docker mcp catalog import ./docker-mcp.yml"
+
+[tasks.docker]
+description = "Build and register the Docker image"
+depends = ["docker:build", "docker:register"]
+
+[tasks.inspect]
+description = "Launch the MCP inspector UI"
+run = "npx @modelcontextprotocol/inspector node dist/server.js"
+depends = ["build"]
+
 # ── Composite tasks ───────────────────────────────────────────────────────────
 
 [tasks.check]
