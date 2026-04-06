@@ -74,6 +74,11 @@ description = "List all MCP tools exposed by the server (reads credentials from 
 run = "npx @modelcontextprotocol/inspector --cli --method tools/list -e DUOLINGO_USERNAME=$DUOLINGO_USERNAME -e DUOLINGO_JWT=$DUOLINGO_JWT node dist/server.js"
 depends = ["build"]
 
+[tasks."inspect:ui"]
+description = "Launch the MCP inspector browser UI (reads credentials from .env)"
+run = "npx @modelcontextprotocol/inspector -e DUOLINGO_USERNAME=$DUOLINGO_USERNAME -e DUOLINGO_JWT=$DUOLINGO_JWT node dist/server.js"
+depends = ["build"]
+
 
 # ── Docker tasks ─────────────────────────────────────────────────────────────
 
