@@ -20,9 +20,6 @@ import { DuolingoClient, resetClient } from '../../src/client/duolingo.js';
 const USERNAME = process.env.DUOLINGO_USERNAME;
 const JWT = process.env.DUOLINGO_JWT;
 
-const SKIP_REASON =
-  'Skipping integration tests: DUOLINGO_USERNAME or DUOLINGO_JWT not set';
-
 function skipIfNoCredentials() {
   if (!USERNAME || !JWT) {
     return true;
@@ -44,10 +41,6 @@ beforeAll(() => {
 // ---------------------------------------------------------------------------
 
 describe('Live API: getUserData', () => {
-  it.skipIf(skipIfNoCredentials())(SKIP_REASON, async () => {
-    // This test is intentionally empty — the real tests follow below
-  });
-
   it('returns user data for the authenticated user', async () => {
     if (skipIfNoCredentials()) return;
 
