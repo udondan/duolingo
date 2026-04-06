@@ -5,8 +5,8 @@
  *
  *   import { DuolingoClient } from '@udondan/duolingo';
  *
- * For the MCP server binary, see the `duolingo-mcp` CLI or the
- * `@udondan/duolingo/server` export.
+ * For the MCP server binary, use the `duolingo-mcp` CLI (installed via
+ * `npm install -g @udondan/duolingo`) or the `@udondan/duolingo/server` export.
  */
 
 // Client class and singleton helpers

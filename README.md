@@ -159,7 +159,8 @@ const client = new DuolingoClient('your_username', 'your_jwt_token');
 
 // Get all courses including Math, Chess, and Music
 const userData = await client.getUserData();
-const v2 = await client.getUserDataV2(userData.id);
+const userId = userData.id;
+const v2 = await client.getUserDataV2(userId);
 for (const course of v2.courses) {
   console.log(`${course.subject}: ${course.xp} XP`);
 }
