@@ -6,6 +6,8 @@
 export interface DuolingoCalendarEntry {
   datetime: number;
   improvement: number;
+  event_type: string | null;
+  skill_id: string | null;
 }
 
 export interface DuolingoSkill {

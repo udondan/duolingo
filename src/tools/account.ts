@@ -465,7 +465,9 @@ export function registerAccountTools(server: McpServer): void {
       description:
         "Get a Duolingo user's recent activity calendar. " +
         'Returns all recent activity entries, sorted newest first. ' +
-        'The Duolingo API provides roughly the last 2 weeks of activity.',
+        'The Duolingo API provides roughly the last 2 weeks of activity. ' +
+        'Note: the calendar reflects the currently selected course only ' +
+        '(e.g. Spanish, Math, Chess) — not all courses combined.',
       inputSchema: {
         username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
@@ -499,8 +501,14 @@ export function registerAccountTools(server: McpServer): void {
 
         const lines = ['# Activity Calendar', ''];
         for (const entry of sorted) {
-          const date = new Date(entry.datetime).toISOString().slice(0, 10);
-          lines.push(`- **${date}** — ${entry.improvement} XP`);
+          const date = new Date(entry.datetime)
+            .toISOString()
+            .replace('T', ' ')
+            .slice(0, 16);
+          const parts = [`**${date}**`, `${entry.improvement} XP`];
+          if (entry.skill_id) parts.push(`skill: ${entry.skill_id}`);
+          if (entry.event_type) parts.push(`type: ${entry.event_type}`);
+          lines.push(`- ${parts.join(' — ')}`);
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {
