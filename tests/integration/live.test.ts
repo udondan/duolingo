@@ -216,7 +216,7 @@ describe('Live API: getLeaderboard', () => {
   it('returns leaderboard data with ranking object', async () => {
     if (skipIfNoCredentials()) return;
 
-    const before = String(Date.now() / 1000);
+    const before = String(Math.floor(Date.now() / 1000));
     const data = await client.getLeaderboard('week', before);
 
     // ranking must be an object (may be empty if user has no friends)
@@ -227,7 +227,7 @@ describe('Live API: getLeaderboard', () => {
   it('returns leaderboard data for month unit', async () => {
     if (skipIfNoCredentials()) return;
 
-    const before = String(Date.now() / 1000);
+    const before = String(Math.floor(Date.now() / 1000));
     const data = await client.getLeaderboard('month', before);
 
     expect(typeof data.ranking).toBe('object');
@@ -236,7 +236,7 @@ describe('Live API: getLeaderboard', () => {
   it('ranking values are string-encoded numbers', async () => {
     if (skipIfNoCredentials()) return;
 
-    const before = String(Date.now() / 1000);
+    const before = String(Math.floor(Date.now() / 1000));
     const data = await client.getLeaderboard('week', before);
 
     for (const [uid, points] of Object.entries(data.ranking)) {

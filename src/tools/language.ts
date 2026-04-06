@@ -195,7 +195,7 @@ export function registerLanguageTools(server: McpServer): void {
     topics: string[],
     fmt: string,
   ): string {
-    if (fmt === 'json') return JSON.stringify(topics, null, 2);
+    if (fmt === 'json') return JSON.stringify([...topics].sort(), null, 2);
     if (topics.length === 0) return `No ${title.toLowerCase()} found.`;
     const lines = [`# ${title}`, ''];
     for (const topic of [...topics].sort()) {
