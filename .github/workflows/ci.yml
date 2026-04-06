@@ -39,3 +39,6 @@ jobs:
           DUOLINGO_USERNAME: ${{ secrets.DUOLINGO_USERNAME }}
           DUOLINGO_JWT: ${{ secrets.DUOLINGO_JWT }}
           DUOLINGO_TEST_USERNAME: ${{ secrets.DUOLINGO_TEST_USERNAME }}
+
+      - name: Publish dry-run
+        run: npm publish --dry-run --access public

@@ -2,6 +2,29 @@
   "name": "@udondan/duolingo",
   "version": "1.0.0",
   "description": "Duolingo API client library and MCP server",
+  "author": {
+    "name": "Daniel Schroeder",
+    "url": "https://www.udondan.com/"
+  },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/udondan"
+    }
+  ],
+  "homepage": "https://github.com/udondan/duolingo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/udondan/duolingo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/udondan/duolingo/issues"
+  },
+  "keywords": [
+    "duolingo",
+    "api",
+    "mcp"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
