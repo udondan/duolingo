@@ -243,26 +243,19 @@ describe('duolingo_get_calendar', () => {
     }
   });
 
-  it('returns calendar filtered by language when language_abbr is set', async () => {
+  it('returns entries sorted newest first', async () => {
     if (SKIP) return;
-
-    // Get the test user's languages first to find a valid abbr
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      username: TEST_USERNAME,
-      abbreviations: true,
-      response_format: 'json',
-    });
-    const langs = parseJson(langsText) as string[];
-    if (langs.length === 0) return;
 
     const text = await callTool(server, 'duolingo_get_calendar', {
       username: TEST_USERNAME,
-      language_abbr: langs[0],
       response_format: 'json',
     });
-    // May return empty array if no activity for that language, but must be valid JSON array
-    const data = parseJson(text);
-    expect(Array.isArray(data)).toBe(true);
+    const data = parseJson(text) as Record<string, unknown>[];
+
+    if (data.length < 2) return;
+    expect(data[0].datetime as number).toBeGreaterThanOrEqual(
+      data[1].datetime as number,
+    );
   });
 });
 

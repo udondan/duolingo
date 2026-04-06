@@ -472,23 +472,23 @@ describe('Account Tools', () => {
   // duolingo_get_calendar
   // -------------------------------------------------------------------------
   describe('duolingo_get_calendar', () => {
-    it('returns overall calendar', async () => {
+    it('returns calendar in markdown format', async () => {
+      vi.mocked(mockClient.getUserData!).mockResolvedValue({
+        ...MOCK_USER_DATA,
+        calendar: [{ datetime: 1699920000000, improvement: 10 }], // 2023-11-14
+      });
       const result = await callTool(server, 'duolingo_get_calendar', {});
       expect(result).toContain('# Activity Calendar');
+      expect(result).toContain('2023-11-14');
+      expect(result).toContain('10 XP');
     });
 
-    it('returns language-specific calendar', async () => {
+    it('returns calendar in JSON format', async () => {
       const result = await callTool(server, 'duolingo_get_calendar', {
-        language_abbr: 'fr',
+        response_format: 'json',
       });
-      expect(result).toContain('# Activity Calendar');
-    });
-
-    it('returns error for unknown language', async () => {
-      const result = await callTool(server, 'duolingo_get_calendar', {
-        language_abbr: 'xx',
-      });
-      expect(result).toContain("No calendar found for language 'xx'");
+      const parsed = JSON.parse(result);
+      expect(Array.isArray(parsed)).toBe(true);
     });
 
     it('returns message when calendar is empty', async () => {
@@ -498,6 +498,22 @@ describe('Account Tools', () => {
       });
       const result = await callTool(server, 'duolingo_get_calendar', {});
       expect(result).toBe('No calendar entries found.');
+    });
+
+    it('returns entries sorted newest first', async () => {
+      vi.mocked(mockClient.getUserData!).mockResolvedValue({
+        ...MOCK_USER_DATA,
+        calendar: [
+          { datetime: 1699920000000, improvement: 10 }, // 2023-11-14
+          { datetime: 1799971200000, improvement: 20 }, // 2027-01-15
+        ],
+      });
+      const result = await callTool(server, 'duolingo_get_calendar', {
+        response_format: 'json',
+      });
+      const parsed = JSON.parse(result) as { improvement: number }[];
+      expect(parsed[0].improvement).toBe(20); // newer entry first
+      expect(parsed[1].improvement).toBe(10);
     });
   });
 

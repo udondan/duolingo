@@ -464,16 +464,10 @@ export function registerAccountTools(server: McpServer): void {
       title: 'Get Duolingo Activity Calendar',
       description:
         "Get a Duolingo user's recent activity calendar. " +
-        'Returns a list of recent activity entries. Optionally filter by language.',
+        'Returns all recent activity entries, sorted newest first. ' +
+        'The Duolingo API provides roughly the last 2 weeks of activity.',
       inputSchema: {
         username: UsernameFieldSchema,
-        language_abbr: z
-          .string()
-          .optional()
-          .describe(
-            "Language abbreviation to filter calendar by (e.g. 'fr'). " +
-              'If omitted, returns the overall calendar.',
-          ),
         response_format: ResponseFormatSchema,
       },
       annotations: {
@@ -483,29 +477,15 @@ export function registerAccountTools(server: McpServer): void {
         openWorldHint: true,
       },
     },
-    async ({ username, language_abbr, response_format }) => {
+    async ({ username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        let calendar;
+        const calendar = userData.calendar;
 
-        if (language_abbr) {
-          const langData = userData.language_data[language_abbr];
-          if (!langData) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `No calendar found for language '${language_abbr}'. Make sure the user is learning this language.`,
-                },
-              ],
-            };
-          }
-          calendar = langData.calendar;
-        } else {
-          calendar = userData.calendar;
-        }
+        // Sort newest first
+        const sorted = [...calendar].sort((a, b) => b.datetime - a.datetime);
 
-        if (calendar.length === 0) {
+        if (sorted.length === 0) {
           return {
             content: [{ type: 'text', text: 'No calendar entries found.' }],
           };
@@ -513,19 +493,14 @@ export function registerAccountTools(server: McpServer): void {
 
         if (response_format === 'json') {
           return {
-            content: [
-              { type: 'text', text: JSON.stringify(calendar, null, 2) },
-            ],
+            content: [{ type: 'text', text: JSON.stringify(sorted, null, 2) }],
           };
         }
 
         const lines = ['# Activity Calendar', ''];
-        const entries = calendar.slice(0, 20);
-        for (const entry of entries) {
-          lines.push(`- ${JSON.stringify(entry)}`);
-        }
-        if (calendar.length > 20) {
-          lines.push(`\n_... and ${calendar.length - 20} more entries_`);
+        for (const entry of sorted) {
+          const date = new Date(entry.datetime).toISOString().slice(0, 10);
+          lines.push(`- **${date}** — ${entry.improvement} XP`);
         }
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {
