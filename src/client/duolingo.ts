@@ -479,10 +479,10 @@ export class DuolingoClient {
     // Modern format: .../tts/<lang>/<voice>/token/<word>
     const modern = /cloudfront\.net\/tts\/[^/]+\/([^/]+)\/token\//.exec(url);
     if (modern) return modern[1] ?? null;
-    // Legacy format: .../<voice>/<hash> (exactly 2 segments, no 'tts' prefix)
+    // Legacy format: .../<voice>/<hash> — only applies to non-/tts/ URLs
+    if (url.includes('/tts/')) return null;
     const legacy = /cloudfront\.net\/([^/]+)\/[^/]+$/.exec(url);
-    if (legacy && legacy[1] !== 'tts') return legacy[1] ?? null;
-    return null;
+    return legacy?.[1] ?? null;
   }
 
   /**
