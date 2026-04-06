@@ -520,20 +520,11 @@ describe('Live API: Known field regressions', () => {
     const data = await client.getUserData();
 
     // num_followers/num_following moved to tracking_properties in current API
-    expect(data.num_followers).toBeUndefined(); // not at top level
-    expect(data.num_following).toBeUndefined(); // not at top level
-
-    // But they ARE in tracking_properties
+    expect(data.num_followers).toBeUndefined();
+    expect(data.num_following).toBeUndefined();
     const tp = data.tracking_properties ?? {};
     expect(typeof tp.num_followers).toBe('number');
     expect(typeof tp.num_following).toBe('number');
-
-    // contribution_points is no longer in the API
-    if (data.contribution_points === undefined) {
-      console.warn(
-        'KNOWN: contribution_points is missing from the API (no replacement found)',
-      );
-    }
   });
 
   it('friends/leaderboard data comes from /friends/users/{id}/following endpoint', async () => {
@@ -542,9 +533,7 @@ describe('Live API: Known field regressions', () => {
     const userData = await client.getUserData();
     const following = await client.getFollowing(userData.id);
 
-    // The following endpoint is the correct source for friends/leaderboard
     expect(Array.isArray(following)).toBe(true);
-    // Each entry has the fields needed for friends and leaderboard
     for (const user of following) {
       expect(typeof user.totalXp).toBe('number');
       expect(
@@ -553,21 +542,11 @@ describe('Live API: Known field regressions', () => {
     }
   });
 
-  it('created field contains human-readable text; use creation_date instead', async () => {
+  it('creation_date is a valid ISO date string', async () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
 
-    // The 'created' field returns a human-readable relative string (e.g. "v. 8 Monaten")
-    // The correct ISO date is in 'creation_date'
-    if (data.created?.includes('\n')) {
-      console.warn(
-        'KNOWN: created field contains whitespace/relative text. ' +
-          'Use creation_date for ISO date string.',
-      );
-    }
-
-    // creation_date should be a proper ISO date string
     expect(typeof data.creation_date).toBe('string');
     expect(data.creation_date).toMatch(/^\d{4}-\d{2}-\d{2}/);
   });

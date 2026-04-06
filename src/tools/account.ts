@@ -89,9 +89,8 @@ export function registerAccountTools(server: McpServer): void {
           lines.push(`- **Followers**: ${info.num_followers}`);
         if (typeof info.num_following === 'number')
           lines.push(`- **Following**: ${info.num_following}`);
-        lines.push(
-          `- **Member Since**: ${info.created !== undefined && info.created.length > 0 ? info.created : 'N/A'}`,
-        );
+        if (info.created)
+          lines.push(`- **Member Since**: ${info.created.slice(0, 10)}`);
         if (info.avatar.length > 0) lines.push(`- **Avatar**: ${info.avatar}`);
 
         return { content: [{ type: 'text', text: lines.join('\n') }] };
