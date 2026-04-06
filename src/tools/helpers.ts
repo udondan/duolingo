@@ -43,7 +43,7 @@ export const UsernameFieldSchema = z
  */
 export function handleError(err: unknown): string {
   if (err instanceof DuolingoAuthError) {
-    return `Error: Authentication failed — ${err.message}`;
+    return `Error: ${err.message}`;
   }
   if (err instanceof DuolingoCaptchaError) {
     return `Error: ${err.message}`;

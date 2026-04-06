@@ -374,7 +374,7 @@ export class DuolingoClient {
       smartTipsVersion: 2,
     };
 
-    let resp: AxiosResponse;
+    let resp: AxiosResponse<DuolingoSessionResponse>;
     try {
       resp = await this.http.post<DuolingoSessionResponse>(url, data);
     } catch (err) {
@@ -393,7 +393,7 @@ export class DuolingoClient {
     }
 
     if (resp.status !== 200) return null;
-    return resp.data as DuolingoSessionResponse;
+    return resp.data;
   }
 
   /**
@@ -402,7 +402,7 @@ export class DuolingoClient {
    * Delegates to getGlobalPracticeSession instead.
    */
   async getSession(
-    skillId: string,
+    _skillId: string,
     langAbbr: string,
   ): Promise<DuolingoSessionResponse | null> {
     return this.getGlobalPracticeSession(
@@ -470,13 +470,19 @@ export class DuolingoClient {
 
   /**
    * Extract the voice name from a Duolingo TTS CDN URL.
-   * URL format: https://<cdn>/<voiceName>/<hash>
+   * Supports two URL formats:
+   *   Legacy: https://<cdn>/<voice>/<hash>
+   *   Modern: https://<cdn>/tts/<lang>/<voice>/token/<word>
    */
   private extractVoiceFromTtsUrl(url?: string): string | null {
     if (!url) return null;
-    // Match: https://d1vq87e9lcf771.cloudfront.net/<voice>/<hash>
-    const match = /cloudfront\.net\/([^/]+)\/[^/]+$/.exec(url);
-    return match?.[1] ?? null;
+    // Modern format: .../tts/<lang>/<voice>/token/<word>
+    const modern = /cloudfront\.net\/tts\/[^/]+\/([^/]+)\/token\//.exec(url);
+    if (modern) return modern[1] ?? null;
+    // Legacy format: .../<voice>/<hash> (exactly 2 segments, no 'tts' prefix)
+    const legacy = /cloudfront\.net\/([^/]+)\/[^/]+$/.exec(url);
+    if (legacy && legacy[1] !== 'tts') return legacy[1] ?? null;
+    return null;
   }
 
   /**

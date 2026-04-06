@@ -309,8 +309,8 @@ describe('DuolingoClient', () => {
   // getLanguageVoices / extractVoiceFromTtsUrl
   // -------------------------------------------------------------------------
   describe('getLanguageVoices', () => {
-    it('extracts voice names from challenge tts URLs', async () => {
-      // TTS URL format: https://<cdn>/<voiceName>/<hash>
+    it('extracts voice names from legacy challenge tts URLs', async () => {
+      // Legacy TTS URL format: https://<cdn>/<voiceName>/<hash>
       const mockSession = {
         challenges: [
           {
@@ -338,6 +338,39 @@ describe('DuolingoClient', () => {
       expect(voices).toContain('beaes');
       expect(voices).toContain('juniores');
       expect(voices).toHaveLength(2); // deduped
+    });
+
+    it('extracts voice names from modern tts URLs', async () => {
+      // Modern TTS URL format: https://<cdn>/tts/<lang>/<voice>/token/<word>
+      const mockSession = {
+        challenges: [
+          {
+            prompt: 'hola',
+            tts: 'https://d7mj4aqfscim2.cloudfront.net/tts/es/beaes/token/hola',
+          },
+          {
+            prompt: 'gracias',
+            tts: 'https://d7mj4aqfscim2.cloudfront.net/tts/es/juniores/token/gracias',
+          },
+          {
+            // No-voice URL (tts/<lang>/token/<word>) should not produce a voice
+            prompt: 'adios',
+            tts: 'https://d7mj4aqfscim2.cloudfront.net/tts/es/token/adios',
+          },
+        ],
+        ttsAnnotations: {},
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: mockSession }],
+        ]),
+      );
+      const voices = await client.getLanguageVoices('es');
+      expect(voices).toContain('beaes');
+      expect(voices).toContain('juniores');
+      expect(voices).not.toContain('token'); // no-voice URL should not produce 'token'
+      expect(voices).not.toContain('tts');
     });
 
     it('extracts voice names from ttsAnnotations keys', async () => {
