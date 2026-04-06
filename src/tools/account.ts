@@ -63,8 +63,9 @@ export function registerAccountTools(server: McpServer): void {
           ui_language: userData.ui_language,
           admin: userData.admin,
           cohort: userData.cohort,
-          // creation_date is an ISO string; created is a human-readable relative string
-          created: userData.creation_date ?? userData.created,
+          // creation_date is an ISO string (preferred); created is a human-readable relative string
+          creation_date: userData.creation_date,
+          created: userData.created,
         };
 
         if (response_format === 'json') {
@@ -89,8 +90,10 @@ export function registerAccountTools(server: McpServer): void {
           lines.push(`- **Followers**: ${info.num_followers}`);
         if (typeof info.num_following === 'number')
           lines.push(`- **Following**: ${info.num_following}`);
-        if (info.created)
-          lines.push(`- **Member Since**: ${info.created.slice(0, 10)}`);
+        if (info.creation_date)
+          lines.push(`- **Member Since**: ${info.creation_date.slice(0, 10)}`);
+        else if (info.created)
+          lines.push(`- **Member Since**: ${info.created}`);
         if (info.avatar.length > 0) lines.push(`- **Avatar**: ${info.avatar}`);
 
         return { content: [{ type: 'text', text: lines.join('\n') }] };

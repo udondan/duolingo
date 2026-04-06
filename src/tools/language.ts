@@ -25,6 +25,8 @@ const LanguageAbbrSchema = z
 
 const OptionalLanguageAbbrSchema = z
   .string()
+  .min(2)
+  .max(5)
   .optional()
   .describe("Language abbreviation (e.g. 'fr'). Defaults to current language.");
 

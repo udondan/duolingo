@@ -259,12 +259,12 @@ describe('Account Tools', () => {
       expect(parsed.num_following).toBe(5);
     });
 
-    it('uses creation_date as the member since date', async () => {
+    it('includes creation_date in JSON output', async () => {
       const result = await callTool(server, 'duolingo_get_user_info', {
         response_format: 'json',
       });
       const parsed = JSON.parse(result);
-      expect(parsed.created).toBe('2020-01-01T00:00:00');
+      expect(parsed.creation_date).toBe('2020-01-01T00:00:00');
     });
 
     it('passes username to getUserData', async () => {
