@@ -6,7 +6,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     // Integration tests call the live Duolingo API which can be slow
-    testTimeout: 30000,
+    testTimeout: 60000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

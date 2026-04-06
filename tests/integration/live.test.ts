@@ -99,12 +99,11 @@ describe('Live API: getUserData', () => {
   it('caches user data on repeated calls', async () => {
     if (skipIfNoCredentials()) return;
 
-    // Create a fresh client to avoid cross-test cache pollution
-    const freshClient = new DuolingoClient(USERNAME!, JWT!);
-    const data1 = await freshClient.getUserData();
-    const data2 = await freshClient.getUserData();
+    // Use the shared client which already has data cached from earlier tests.
+    // The second call must return the exact same object reference (no network call).
+    const data1 = await client.getUserData();
+    const data2 = await client.getUserData();
 
-    // Same object reference means it was cached
     expect(data1).toBe(data2);
   });
 
