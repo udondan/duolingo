@@ -157,12 +157,37 @@ describe('Language Tools', () => {
       });
       expect(result).toContain("No details found for language 'Klingon'");
     });
+
+    it('returns message when current course is not a language course', async () => {
+      vi.mocked(mockClient.getUserData!).mockResolvedValue({
+        ...MOCK_USER_DATA,
+        languages: undefined,
+        language_data: undefined,
+      });
+      const result = await callTool(server, 'duolingo_get_language_details', {
+        language_name: 'French',
+      });
+      expect(result).toBe(
+        'Language details are not available while the current course is not a language course.',
+      );
+    });
   });
 
   // -------------------------------------------------------------------------
   // duolingo_get_language_progress
   // -------------------------------------------------------------------------
   describe('duolingo_get_language_progress', () => {
+    it('returns not found when language_data is missing (non-language course)', async () => {
+      vi.mocked(mockClient.getUserData!).mockResolvedValue({
+        ...MOCK_USER_DATA,
+        language_data: undefined,
+      });
+      const result = await callTool(server, 'duolingo_get_language_progress', {
+        language_abbr: 'fr',
+      });
+      expect(result).toContain("Language 'fr' not found");
+    });
+
     it('returns markdown language progress', async () => {
       const result = await callTool(server, 'duolingo_get_language_progress', {
         language_abbr: 'fr',

@@ -82,8 +82,13 @@ describe('Live API: getUserData', () => {
 
     expect(data.username).toBe(TEST_USERNAME);
     expect(typeof data.id).toBe('number');
-    expect(Array.isArray(data.languages)).toBe(true);
-    expect(data.languages.length).toBeGreaterThan(0);
+    // languages is omitted while the current course is not a language course
+    if (data.learning_language_string !== null) {
+      expect(Array.isArray(data.languages)).toBe(true);
+      expect(data.languages!.length).toBeGreaterThan(0);
+    } else {
+      expect(data.languages).toBeUndefined();
+    }
   });
 
   it('throws DuolingoNotFoundError for a non-existent user', async () => {
@@ -111,13 +116,13 @@ describe('Live API: getUserData', () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
+    const langKeys = Object.keys(data.language_data!);
 
     // User must be learning at least one language
     expect(langKeys.length).toBeGreaterThan(0);
 
     for (const key of langKeys) {
-      const langData = data.language_data[key]!;
+      const langData = data.language_data![key]!;
 
       // Required numeric fields
       expect(typeof langData.streak).toBe('number');
@@ -138,7 +143,7 @@ describe('Live API: getUserData', () => {
 
     const data = await client.getUserData();
 
-    for (const lang of data.languages) {
+    for (const lang of data.languages!) {
       expect(typeof lang.language).toBe('string');
       expect(lang.language.length).toBeGreaterThan(0);
       expect(typeof lang.language_string).toBe('string');
@@ -318,7 +323,7 @@ describe('Live API: getLanguageVoices (TTS voices via session API)', () => {
     if (skipIfNoCredentials()) return;
 
     const userData = await client.getUserData();
-    const langKeys = Object.keys(userData.language_data);
+    const langKeys = Object.keys(userData.language_data!);
     if (langKeys.length === 0) return;
 
     const langAbbr = langKeys[0]!;
@@ -340,7 +345,7 @@ describe('Live API: getLanguageVoices (TTS voices via session API)', () => {
     if (skipIfNoCredentials()) return;
 
     const userData = await client.getUserData();
-    const langKeys = Object.keys(userData.language_data);
+    const langKeys = Object.keys(userData.language_data!);
     if (langKeys.length === 0) return;
 
     const langAbbr = langKeys[0]!;
@@ -355,7 +360,7 @@ describe('Live API: getLanguageVoices (TTS voices via session API)', () => {
     if (skipIfNoCredentials()) return;
 
     const userData = await client.getUserData();
-    const langKeys = Object.keys(userData.language_data);
+    const langKeys = Object.keys(userData.language_data!);
     if (langKeys.length === 0) return;
 
     const langAbbr = langKeys[0]!;
@@ -379,10 +384,10 @@ describe('Live API: Skills data structure', () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
+    const langKeys = Object.keys(data.language_data!);
     if (langKeys.length === 0) return;
 
-    const langData = data.language_data[langKeys[0]!]!;
+    const langData = data.language_data![langKeys[0]!]!;
     if (langData.skills.length === 0) return;
 
     for (const skill of langData.skills.slice(0, 5)) {
@@ -401,10 +406,10 @@ describe('Live API: Skills data structure', () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
+    const langKeys = Object.keys(data.language_data!);
     if (langKeys.length === 0) return;
 
-    const langData = data.language_data[langKeys[0]!]!;
+    const langData = data.language_data![langKeys[0]!]!;
     const knownTopics = langData.skills
       .filter((s) => s.learned)
       .map((s) => s.title);
@@ -422,10 +427,10 @@ describe('Live API: Skills data structure', () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
+    const langKeys = Object.keys(data.language_data!);
     if (langKeys.length === 0) return;
 
-    const langData = data.language_data[langKeys[0]!]!;
+    const langData = data.language_data![langKeys[0]!]!;
     const knownTopics = new Set(
       langData.skills.filter((s) => s.learned).map((s) => s.title),
     );
@@ -489,7 +494,7 @@ describe('Live API: Language data completeness', () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
-    const langKeys = Object.keys(data.language_data);
+    const langKeys = Object.keys(data.language_data!);
 
     // The current learning language should be in language_data
     // (Note: the API only returns language_data for the current language)
@@ -500,7 +505,7 @@ describe('Live API: Language data completeness', () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();
-    const langDataKeys = Object.keys(data.language_data);
+    const langDataKeys = Object.keys(data.language_data!);
     const languageAbbrs = new Set(data.languages.map((l) => l.language));
 
     for (const key of langDataKeys) {
@@ -565,15 +570,18 @@ describe('Live API: Public user data', () => {
     expect(typeof data.username).toBe('string');
     expect(data.username).toBe(TEST_USERNAME);
     expect(typeof data.id).toBe('number');
-    expect(Array.isArray(data.languages)).toBe(true);
-    expect(data.languages.length).toBeGreaterThan(0);
+    // languages is omitted while the current course is not a language course
+    if (data.learning_language_string !== null) {
+      expect(Array.isArray(data.languages)).toBe(true);
+      expect(data.languages!.length).toBeGreaterThan(0);
+    }
   });
 
   it('public user has language_data for current language only', async () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData(TEST_USERNAME);
-    const langKeys = Object.keys(data.language_data);
+    const langKeys = Object.keys(data.language_data ?? {});
 
     // The API only returns language_data for the current learning language
     expect(langKeys.length).toBeGreaterThanOrEqual(0);
