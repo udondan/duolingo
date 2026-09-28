@@ -6,7 +6,7 @@ it('diag: current course and calendar', async () => {
     process.env.DUOLINGO_USERNAME!,
     process.env.DUOLINGO_JWT!,
   );
-  const test = await client.getUserData(process.env.DUOLINGO_TEST_USERNAME!);
+  const test = await client.getUserData(process.env.DUOLINGO_TEST_USERNAME);
   const raw = (await client.getUserDataById(test.id, [
     'currentCourseId',
     'courses',
