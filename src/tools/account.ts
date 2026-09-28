@@ -81,7 +81,7 @@ export function registerAccountTools(server: McpServer): void {
         if (info.location !== null && info.location.length > 0)
           lines.push(`- **Location**: ${info.location}`);
         lines.push(
-          `- **Learning**: ${info.learning_language_string.length > 0 ? info.learning_language_string : 'N/A'}`,
+          `- **Learning**: ${info.learning_language_string !== null && info.learning_language_string.length > 0 ? info.learning_language_string : 'N/A'}`,
         );
         lines.push(
           `- **UI Language**: ${info.ui_language.length > 0 ? info.ui_language : 'N/A'}`,
@@ -488,7 +488,7 @@ export function registerAccountTools(server: McpServer): void {
     async ({ username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const calendar = userData.calendar;
+        const calendar = userData.calendar ?? [];
 
         // Sort newest first
         const sorted = [...calendar].sort((a, b) => b.datetime - a.datetime);

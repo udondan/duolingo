@@ -59,6 +59,20 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_name, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
+
+        // The API omits `languages` while the current course is not a
+        // language course (e.g. Math, Music, Chess).
+        if (!userData.languages) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Language details are not available while the current course is not a language course.',
+              },
+            ],
+          };
+        }
+
         const lang = userData.languages.find(
           (l) => l.language_string === language_name,
         );
@@ -126,7 +140,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, response_format }) => {
       try {
         const userData = await getClient().getUserData();
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -225,7 +239,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -273,7 +287,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -322,7 +336,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -375,7 +389,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -426,7 +440,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -499,7 +513,7 @@ export function registerLanguageTools(server: McpServer): void {
     async ({ language_abbr, username, response_format }) => {
       try {
         const userData = await getClient().getUserData(username);
-        const langData = userData.language_data[language_abbr];
+        const langData = userData.language_data?.[language_abbr];
         if (!langData) {
           return {
             content: [
@@ -582,7 +596,7 @@ export function registerLanguageTools(server: McpServer): void {
         let langAbbr = language_abbr;
         if (!langAbbr) {
           const userData = await client.getUserData();
-          const langKeys = Object.keys(userData.language_data);
+          const langKeys = Object.keys(userData.language_data ?? {});
           langAbbr = langKeys[0];
         }
 
@@ -676,7 +690,7 @@ export function registerLanguageTools(server: McpServer): void {
         let langAbbr = language_abbr;
         if (!langAbbr) {
           const userData = await client.getUserData();
-          const langKeys = Object.keys(userData.language_data);
+          const langKeys = Object.keys(userData.language_data ?? {});
           langAbbr = langKeys[0];
         }
 

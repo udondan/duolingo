@@ -313,7 +313,7 @@ export class DuolingoClient {
     }
 
     const userData = await this.getUserData();
-    const langData = userData.language_data[langAbbr];
+    const langData = userData.language_data?.[langAbbr];
     const fromLanguage = langData ? (langAbbr !== 'en' ? 'en' : 'de') : 'en';
 
     const session = await this.getGlobalPracticeSession(langAbbr, fromLanguage);
@@ -429,7 +429,7 @@ export class DuolingoClient {
     this.voiceUrlDict.set(langAbbr, langDict);
 
     const userData = await this.getUserData();
-    const langData = userData.language_data[langAbbr];
+    const langData = userData.language_data?.[langAbbr];
     const fromLanguage = langData ? (langAbbr !== 'en' ? 'en' : 'de') : 'en';
 
     const session = await this.getGlobalPracticeSession(langAbbr, fromLanguage);
