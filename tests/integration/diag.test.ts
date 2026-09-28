@@ -6,16 +6,18 @@ it('diag: current course and calendar', async () => {
     process.env.DUOLINGO_USERNAME!,
     process.env.DUOLINGO_JWT!,
   );
-  const test = await client.getUserData(process.env.DUOLINGO_TEST_USERNAME);
-  const url = `https://www.duolingo.com/2023-05-23/users/${test.id}?fields=currentCourseId,courses`;
-  const raw = (await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
-  }).then((r) => r.json())) as {
+  const test = await client.getUserData(process.env.DUOLINGO_TEST_USERNAME!);
+  const raw = (await client.getUserDataById(test.id, [
+    'currentCourseId',
+    'courses',
+    'learningLanguage',
+  ])) as unknown as {
     currentCourseId?: string;
+    learningLanguage?: string;
     courses?: { id: string }[];
   };
   console.log(
-    `DIAG test currentCourseId=${raw.currentCourseId ?? 'none'} courses=${(raw.courses ?? []).map((c) => c.id).join(',')}`,
+    `DIAG test currentCourseId=${raw.currentCourseId ?? 'none'} learningLanguage=${raw.learningLanguage ?? 'none'} courses=${(raw.courses ?? []).map((c) => c.id).join(',')}`,
   );
   const luis = (await client.getUserData('luis')) as unknown as {
     learning_language: string;
