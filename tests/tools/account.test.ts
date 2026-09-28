@@ -500,6 +500,15 @@ describe('Account Tools', () => {
       expect(result).toBe('No calendar entries found.');
     });
 
+    it('returns message when calendar is missing (non-language course)', async () => {
+      vi.mocked(mockClient.getUserData!).mockResolvedValue({
+        ...MOCK_USER_DATA,
+        calendar: undefined,
+      });
+      const result = await callTool(server, 'duolingo_get_calendar', {});
+      expect(result).toBe('No calendar entries found.');
+    });
+
     it('returns entries sorted newest first', async () => {
       vi.mocked(mockClient.getUserData!).mockResolvedValue({
         ...MOCK_USER_DATA,

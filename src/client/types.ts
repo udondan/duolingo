@@ -36,7 +36,7 @@ export interface DuolingoLanguageData {
   points: number;
   fluency_score: number | null;
   level: number;
-  calendar: DuolingoCalendarEntry[];
+  calendar?: DuolingoCalendarEntry[];
   skills: DuolingoSkill[];
   [key: string]: unknown;
 }
@@ -65,7 +65,7 @@ export interface DuolingoUserData {
   bio: string;
   id: number;
   cohort: number | null;
-  learning_language_string: string;
+  learning_language_string: string | null;
   /** Returns human-readable relative text. Use creation_date for ISO string. */
   created?: string;
   /** ISO date string e.g. "2025-08-07T17:13:57". */
@@ -86,9 +86,9 @@ export interface DuolingoUserData {
   deactivated: boolean;
   tts_base_url?: string;
   tracking_properties?: DuolingoTrackingProperties;
-  calendar: DuolingoCalendarEntry[];
-  languages: DuolingoLanguage[];
-  language_data: Record<string, DuolingoLanguageData>;
+  calendar?: DuolingoCalendarEntry[];
+  languages?: DuolingoLanguage[];
+  language_data?: Record<string, DuolingoLanguageData>;
   [key: string]: unknown;
 }
 
