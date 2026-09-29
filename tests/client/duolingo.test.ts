@@ -288,24 +288,6 @@ describe('DuolingoClient', () => {
   });
 
   // -------------------------------------------------------------------------
-  // getLeaderboard
-  // -------------------------------------------------------------------------
-  describe('getLeaderboard', () => {
-    it('fetches leaderboard data', async () => {
-      const mockLeaderboard = {
-        ranking: { '99001': '2000', '12345': '1500' },
-      };
-      const client = makeClientWithMockHttp(
-        new Map([
-          ['leaderboard_activity', { status: 200, data: mockLeaderboard }],
-        ]),
-      );
-      const data = await client.getLeaderboard('week', '1234567890');
-      expect(data.ranking).toEqual({ '99001': '2000', '12345': '1500' });
-    });
-  });
-
-  // -------------------------------------------------------------------------
   // getLanguageVoices / extractVoiceFromTtsUrl
   // -------------------------------------------------------------------------
   describe('getLanguageVoices', () => {

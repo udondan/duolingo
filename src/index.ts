@@ -62,9 +62,6 @@ export type {
   // Health / hearts
   DuolingoHealth,
 
-  // Leaderboard (legacy)
-  DuolingoLeaderboardData,
-
   // Session / TTS
   DuolingoSessionRequest,
   DuolingoSessionResponse,

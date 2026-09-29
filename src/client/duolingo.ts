@@ -15,7 +15,6 @@ import {
 import type {
   DuolingoUserData,
   DuolingoDailyProgress,
-  DuolingoLeaderboardData,
   DuolingoFollowingResponse,
   DuolingoFollowersResponse,
   DuolingoFriendUser,
@@ -272,19 +271,6 @@ export class DuolingoClient {
   private async getAuthenticatedUserId(): Promise<number> {
     const userData = await this.getUserData();
     return userData.id;
-  }
-
-  /**
-   * Get leaderboard data for a time unit.
-   * Note: the /friendships/leaderboard_activity endpoint returns an empty ranking
-   * for most users. Prefer getFollowing() and sort by weeklyXp/monthlyXp instead.
-   */
-  async getLeaderboard(
-    unit: string,
-    before: string,
-  ): Promise<DuolingoLeaderboardData> {
-    const url = `${BASE_URL}/friendships/leaderboard_activity?unit=${encodeURIComponent(unit)}&_=${encodeURIComponent(before)}`;
-    return this.makeRequest<DuolingoLeaderboardData>(url);
   }
 
   /**
