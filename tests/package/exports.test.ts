@@ -50,7 +50,6 @@ import type {
   DuolingoStreakGoalOption,
   DuolingoShopItem,
   DuolingoHealth,
-  DuolingoLeaderboardData,
   DuolingoSessionRequest,
   DuolingoSessionResponse,
   DuolingoChallenge,
@@ -81,7 +80,6 @@ describe('Package exports: runtime values', () => {
         'getUserIdByUsername',
         'getFollowing',
         'getFollowers',
-        'getLeaderboard',
         'getShopItems',
         'getHealth',
         'getCurrencies',
@@ -303,7 +301,6 @@ describe('Package exports: type shapes (compile-time)', () => {
       | DuolingoStreakGoalOption
       | DuolingoShopItem
       | DuolingoHealth
-      | DuolingoLeaderboardData
       | DuolingoSessionRequest
       | DuolingoSessionResponse
       | DuolingoChallenge
