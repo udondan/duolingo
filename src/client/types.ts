@@ -227,10 +227,6 @@ export interface DuolingoDailyProgress {
   streakData: DuolingoStreakData;
 }
 
-export interface DuolingoLeaderboardData {
-  ranking: Record<string, string>;
-}
-
 /** A user entry from /2017-06-30/friends/users/{id}/following or /followers */
 export interface DuolingoFriendUser {
   userId: number;
