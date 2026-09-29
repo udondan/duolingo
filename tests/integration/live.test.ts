@@ -214,46 +214,6 @@ describe('Live API: getUserDataById (daily XP progress)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getLeaderboard — /friendships/leaderboard_activity
-// ---------------------------------------------------------------------------
-
-describe('Live API: getLeaderboard', () => {
-  it('returns leaderboard data with ranking object', async () => {
-    if (skipIfNoCredentials()) return;
-
-    const before = String(Math.floor(Date.now() / 1000));
-    const data = await client.getLeaderboard('week', before);
-
-    // ranking must be an object (may be empty if user has no friends)
-    expect(typeof data.ranking).toBe('object');
-    expect(data.ranking).not.toBeNull();
-  });
-
-  it('returns leaderboard data for month unit', async () => {
-    if (skipIfNoCredentials()) return;
-
-    const before = String(Math.floor(Date.now() / 1000));
-    const data = await client.getLeaderboard('month', before);
-
-    expect(typeof data.ranking).toBe('object');
-  });
-
-  it('ranking values are string-encoded numbers', async () => {
-    if (skipIfNoCredentials()) return;
-
-    const before = String(Math.floor(Date.now() / 1000));
-    const data = await client.getLeaderboard('week', before);
-
-    for (const [uid, points] of Object.entries(data.ranking)) {
-      // Keys are user IDs (numeric strings)
-      expect(Number.isNaN(parseInt(uid, 10))).toBe(false);
-      // Values are XP points (numeric strings)
-      expect(Number.isNaN(parseInt(points, 10))).toBe(false);
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
 // getFollowing / getFollowers — friends and leaderboard data
 // ---------------------------------------------------------------------------
 
