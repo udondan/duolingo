@@ -6,11 +6,44 @@ on:
       - main
 
 jobs:
+  # All runs share one live Duolingo account. Many parallel runs, for
+  # example of several Renovate PRs, would send bursts of requests that look
+  # suspicious, so only one run at a time may run the integration tests.
+  wait-for-turn:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      actions: read
+      contents: write # lock refs under refs/wait-for-turn/
+      pull-requests: read # labels for label-weights
+    # A new commit on the branch cancels the waiting of the outdated run, so the
+    # new run doesn't queue behind it. Once a run has the turn, this job is
+    # done: test jobs that already run are never cancelled.
+    concurrency:
+      group: test-wait-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    steps:
+      # Queue order: manual PRs first, then Renovate updates.
+      - name: Wait for turn
+        uses: udondan/wait-for-turn@4a9f5171a1dbc3eb182410c772dae951e8ac26e3 # v1.3.0
+        with:
+          label-weights: |
+            renovate=-5
+
   ci:
     name: Lint, typecheck & test
+    needs: wait-for-turn
+    # Pull requests from forks can't take the turn and skip the wait, as they
+    # don't get the secrets. Fail if the wait failed or was cancelled.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check turn
+        if: needs.wait-for-turn.result == 'failure' || needs.wait-for-turn.result == 'cancelled'
+        run: exit 1
+
       - uses: actions/checkout@v7.0.1
 
       - uses: actions/setup-node@v7.0.0
