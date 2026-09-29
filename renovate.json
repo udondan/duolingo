@@ -1,12 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":semanticCommitTypeAll(chore)"],
-  "mode": "full",
-  "semanticCommits": "enabled",
-  "labels": ["renovate"],
-  "rangeStrategy": "pin",
-  "minimumReleaseAge": "3 days",
-  "automerge": true,
-  "automergeType": "pr",
-  "automergeStrategy": "squash"
+  "extends": ["github>udondan/renovate-config"],
+  "rangeStrategy": "pin"
 }
