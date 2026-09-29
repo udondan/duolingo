@@ -287,8 +287,7 @@ export interface DuolingoChallenge {
 }
 
 export type DuolingoToken =
-  | { tts?: string; value?: string; [key: string]: unknown }
-  | DuolingoToken[];
+  { tts?: string; value?: string; [key: string]: unknown } | DuolingoToken[];
 
 export interface DuolingoSessionResponse {
   challenges: DuolingoChallenge[];
