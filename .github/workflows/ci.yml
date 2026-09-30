@@ -75,3 +75,13 @@ jobs:
 
       - name: Package dry-run
         run: npm pack --dry-run
+
+  # The only test check the ruleset requires, whatever jobs are added later.
+  required:
+    needs: [wait-for-turn, ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check result
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
