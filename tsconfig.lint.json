@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "eslint.config.js",
+    "prettier.config.js",
+    "vitest.config.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
