@@ -67,7 +67,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
+    "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.0.2",
     "axios-mock-adapter": "2.1.0",
     "eslint": "10.11.0",
