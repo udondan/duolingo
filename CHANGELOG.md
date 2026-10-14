@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.2](https://github.com/udondan/duolingo/compare/v1.0.1...v1.0.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* package.json & package-lock.json to reduce vulnerabilities ([f8d816e](https://github.com/udondan/duolingo/commit/f8d816e11a01b33d22f327db9be45c91a762a45e))
+
+
+### Dependencies
+
+* **deps:** [Snyk] Security upgrade zod from 4.6.5 to 4.6.6 ([#40](https://github.com/udondan/duolingo/issues/40)) ([f8d816e](https://github.com/udondan/duolingo/commit/f8d816e11a01b33d22f327db9be45c91a762a45e))
+* **deps:** update actions/setup-node action to v7.1.0 ([#35](https://github.com/udondan/duolingo/issues/35)) ([a3f3469](https://github.com/udondan/duolingo/commit/a3f3469a705d3c1840c7d3f46d47c1cab2038f0a))
+* **deps:** update dependency @modelcontextprotocol/sdk to v1.32.1 ([#36](https://github.com/udondan/duolingo/issues/36)) ([96ee745](https://github.com/udondan/duolingo/commit/96ee745c7f4543d0cc48e3097a9e159a4528dacd))
+* **deps:** update dependency @types/node to v24.19.2 ([#33](https://github.com/udondan/duolingo/issues/33)) ([89695a4](https://github.com/udondan/duolingo/commit/89695a4cf3742e00151d34040e249578789d24c1))
+* **deps:** update lint tooling ([#37](https://github.com/udondan/duolingo/issues/37)) ([fd3ec47](https://github.com/udondan/duolingo/commit/fd3ec47e878cd3822196ec36a00fcb0a70184192))
+* **deps:** update node.js to v26.11.1 ([#38](https://github.com/udondan/duolingo/issues/38)) ([7e8dc54](https://github.com/udondan/duolingo/commit/7e8dc54acc4366fada251e02578e6bbd81f733bc))
+* **deps:** update vitest monorepo to v5.0.3 ([#34](https://github.com/udondan/duolingo/issues/34)) ([347f1d4](https://github.com/udondan/duolingo/commit/347f1d42e0cb96e15b080ffe7fb1d22a0ad375b7))
+
 ## [1.0.1](https://github.com/udondan/duolingo/compare/v1.0.0...v1.0.1) (2026-09-30)
 
 
