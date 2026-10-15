@@ -64,7 +64,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
     "axios": "1.20.0",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
