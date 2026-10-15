@@ -1,6 +1,6 @@
 {
   "name": "@udondan/duolingo",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Duolingo API client library and MCP server",
   "author": {
     "name": "Daniel Schroeder",
