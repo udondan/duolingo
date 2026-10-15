@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.3](https://github.com/udondan/duolingo/compare/v1.0.2...v1.0.3) (2026-10-15)
+
+
+### Dependencies
+
+* **deps:** update dependency typescript-eslint to v8.71.2 ([#44](https://github.com/udondan/duolingo/issues/44)) ([daae16d](https://github.com/udondan/duolingo/commit/daae16dc8e25ebf9dff59a9a92b30df66d2ee4e5))
+* **deps:** update dependency zod to v4.6.7 ([#45](https://github.com/udondan/duolingo/issues/45)) ([4fab786](https://github.com/udondan/duolingo/commit/4fab786c7e87b205daf02a5eb913637d0436685e))
+* **deps:** update udondan/wait-for-turn to v1.4.0 ([#41](https://github.com/udondan/duolingo/issues/41)) ([6ba79c8](https://github.com/udondan/duolingo/commit/6ba79c898cbc68f446f6ab7c1a7aa76a34a3a568))
+* **deps:** update vitest monorepo to v5.0.4 ([#43](https://github.com/udondan/duolingo/issues/43)) ([cdabf3d](https://github.com/udondan/duolingo/commit/cdabf3d5f012cfb115004cca4591a47a40506b2f))
+
 ## [1.0.2](https://github.com/udondan/duolingo/compare/v1.0.1...v1.0.2) (2026-10-14)
 
 
