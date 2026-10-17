@@ -1,0 +1,19 @@
+---
+registry:
+  duolingo-mcp:
+    title: Duolingo MCP
+    description: Duolingo API client exposed as an MCP server
+    image: mcp/duolingo-mcp:latest
+    type: server
+    tools: []
+    secrets:
+      - name: duolingo-mcp.username
+        env: DUOLINGO_USERNAME
+        example: your_duolingo_username
+        description: Your Duolingo username
+      - name: duolingo-mcp.jwt
+        env: DUOLINGO_JWT
+        example: your_jwt_token
+        description: Your Duolingo JWT token (extract from browser cookies)
+name: duolingo
+displayName: Duolingo
