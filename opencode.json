@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "duolingo": {
+      "type": "local",
+      "command": ["node", "./dist/server.js"],
+      "environment": {
+        "DUOLINGO_USERNAME": "{env:DUOLINGO_USERNAME}",
+        "DUOLINGO_JWT": "{env:DUOLINGO_JWT}"
+      }
+    }
+  }
+}
