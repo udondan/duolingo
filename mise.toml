@@ -3,6 +3,10 @@ jobs = 1
 
 [tools]
 node = "lts"
+# Workflow linters for the CI actions job, which installs only these two.
+actionlint = "1.7.12"
+# The runner's own shellcheck is older and reports differently. actionlint runs it over every `run:` block.
+shellcheck = "0.11.0"
 
 [env]
 # Load .env file if present (never commit this file)
