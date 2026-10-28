@@ -41,6 +41,9 @@ jobs:
     # don't get the secrets. Fail if the wait failed or was cancelled.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Codecov upload via OIDC
 
     steps:
       - name: Check turn
@@ -72,11 +75,18 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage
         env:
           DUOLINGO_USERNAME: ${{ secrets.DUOLINGO_USERNAME }}
           DUOLINGO_JWT: ${{ secrets.DUOLINGO_JWT }}
           DUOLINGO_TEST_USERNAME: ${{ secrets.DUOLINGO_TEST_USERNAME }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          use_oidc: true
+          fail_ci_if_error: false
+          files: coverage/lcov.info
 
       - name: Package dry-run
         run: npm pack --dry-run
