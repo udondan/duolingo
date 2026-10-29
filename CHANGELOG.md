@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.0.0](https://github.com/udondan/duolingo/compare/v1.0.2...v2.0.0) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* the `duolingo-mcp` binary is replaced by `duolingo mcp`, and the `@udondan/duolingo/server` export is removed.
+
+### Features
+
+* add duolingo CLI with mcp subcommand ([#55](https://github.com/udondan/duolingo/issues/55)) ([41b3d82](https://github.com/udondan/duolingo/commit/41b3d8282a6ff0ffe1e3446ff2ad01e69013c376))
+* publish the Docker image udondan/duolingo to Docker Hub ([#56](https://github.com/udondan/duolingo/issues/56)) ([650d361](https://github.com/udondan/duolingo/commit/650d3610f854994901c0418058e716653d727aaa))
+
+
+### Dependencies
+
+* **deps:** lock file maintenance ([#49](https://github.com/udondan/duolingo/issues/49)) ([f6b9da4](https://github.com/udondan/duolingo/commit/f6b9da4a4e452e224c1f3b431c28e17ff5c63185))
+* **deps:** update dependency @modelcontextprotocol/sdk to v1.32.2 ([#50](https://github.com/udondan/duolingo/issues/50)) ([be87b89](https://github.com/udondan/duolingo/commit/be87b8938fcfc9edefd35401730206541bd5958e))
+* **deps:** update dependency eslint-plugin-prettier to v5.5.7 ([#46](https://github.com/udondan/duolingo/issues/46)) ([3ddfe1d](https://github.com/udondan/duolingo/commit/3ddfe1d9023e8e2ab8699b883434a9e54e715c04))
+* **deps:** update dependency typescript-eslint to v8.71.2 ([#44](https://github.com/udondan/duolingo/issues/44)) ([daae16d](https://github.com/udondan/duolingo/commit/daae16dc8e25ebf9dff59a9a92b30df66d2ee4e5))
+* **deps:** update dependency typescript-eslint to v8.72.1 ([#54](https://github.com/udondan/duolingo/issues/54)) ([b74e596](https://github.com/udondan/duolingo/commit/b74e596fe4325dfab7585efe663b6de8f08eac19))
+* **deps:** update dependency zod to v4.6.7 ([#45](https://github.com/udondan/duolingo/issues/45)) ([4fab786](https://github.com/udondan/duolingo/commit/4fab786c7e87b205daf02a5eb913637d0436685e))
+* **deps:** update jdx/mise-action action to v5 ([#53](https://github.com/udondan/duolingo/issues/53)) ([00cd563](https://github.com/udondan/duolingo/commit/00cd5631585b1032f594d83106ae2fc37dce09b8))
+* **deps:** update node.js to v26.12.0 ([#47](https://github.com/udondan/duolingo/issues/47)) ([72dcc50](https://github.com/udondan/duolingo/commit/72dcc508dd4a71f76129d123da3d208ed275d494))
+* **deps:** update udondan/wait-for-turn to v1.4.0 ([#41](https://github.com/udondan/duolingo/issues/41)) ([6ba79c8](https://github.com/udondan/duolingo/commit/6ba79c898cbc68f446f6ab7c1a7aa76a34a3a568))
+* **deps:** update vitest monorepo to v5.0.4 ([#43](https://github.com/udondan/duolingo/issues/43)) ([cdabf3d](https://github.com/udondan/duolingo/commit/cdabf3d5f012cfb115004cca4591a47a40506b2f))
+* **deps:** update vitest monorepo to v5.0.5 ([#48](https://github.com/udondan/duolingo/issues/48)) ([7a17c2c](https://github.com/udondan/duolingo/commit/7a17c2c6de392ad9895eec4175084960852df02d))
+
 ## [1.0.2](https://github.com/udondan/duolingo/compare/v1.0.1...v1.0.2) (2026-10-14)
 
 
