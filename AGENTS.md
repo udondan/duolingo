@@ -68,7 +68,21 @@ mise run dev
 # Inspect MCP tools via CLI or browser UI (reads credentials from .env)
 mise run inspect
 mise run "inspect:ui"
+
+# Docker image
+mise run docker-build                # docker build -t udondan/duolingo .
+mise run docker-register [profile]   # add to a Docker MCP Toolkit profile (default: duolingo)
+mise run docker                      # both
 ```
+
+The local `udondan/duolingo:latest` takes the place of the public image, so
+the Docker MCP Toolkit runs the local build. `docker pull udondan/duolingo`
+switches back.
+
+Releases (`publish.yml`) publish the npm package and push the Docker image
+`udondan/duolingo` (amd64 and arm64, tags `x.y.z`, `x.y`, `x`, `latest`, signed
+with cosign) with an access token from the GitHub environment `docker-hub`
+(`DOCKERHUB_USERNAME` variable, `DOCKERHUB_TOKEN` secret).
 
 Test files live under `tests/` and mirror `src/` layout. The framework is
 **Vitest** (`vitest.config.ts`); globals (`describe`, `it`, `expect`, `vi`)

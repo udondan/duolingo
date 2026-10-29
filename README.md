@@ -1,5 +1,12 @@
 # @udondan/duolingo
 
+[![npm](https://img.shields.io/npm/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
+[![Docker](https://img.shields.io/docker/v/udondan/duolingo?sort=semver&label=docker)](https://hub.docker.com/r/udondan/duolingo)
+[![Node.js](https://img.shields.io/node/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
+[![CI](https://github.com/udondan/duolingo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/udondan/duolingo/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/udondan/duolingo/graph/badge.svg)](https://codecov.io/gh/udondan/duolingo)
+[![License](https://img.shields.io/github/license/udondan/duolingo)](LICENSE)
+
 A TypeScript package that provides a **Duolingo API client library**, a
 **command line interface** (`duolingo`) and an
 **[MCP](https://modelcontextprotocol.io) server** for LLM agents (e.g. Claude).
@@ -14,10 +21,12 @@ Duolingo library dependency.
   - [Installation](#cli-installation)
   - [Credentials](#credentials)
   - [Commands](#commands)
+  - [With Docker](#with-docker)
 - [MCP Server](#mcp-server)
   - [Installation](#mcp-installation)
   - [Claude Desktop](#claude-desktop)
   - [Claude Code](#claude-code)
+  - [Docker MCP Toolkit](#docker-mcp-toolkit)
   - [Available Tools](#available-tools)
 - [Library](#library)
   - [Installation](#library-installation)
@@ -53,6 +62,10 @@ duolingo --help
 ```
 
 Or run it without installing: `npx -y @udondan/duolingo --help`.
+
+The CLI and the MCP server are also available as the Docker image
+[`udondan/duolingo`](https://hub.docker.com/r/udondan/duolingo) (amd64 and
+arm64), no Node.js needed. See [With Docker](#with-docker).
 
 ### Credentials
 
@@ -114,6 +127,26 @@ duolingo leaderboard --unit month
 
 Errors go to stderr and the CLI exits with code 1.
 
+### With Docker
+
+Arguments after the image name are passed to the CLI. `-e NAME` without a
+value takes the variable from your shell:
+
+```bash
+docker run --rm -e DUOLINGO_USERNAME -e DUOLINGO_JWT udondan/duolingo streak
+```
+
+As an alias, the image behaves like an installed `duolingo`:
+
+```bash
+alias duolingo='docker run --rm -e DUOLINGO_USERNAME -e DUOLINGO_JWT udondan/duolingo'
+
+duolingo --format markdown progress es
+```
+
+The config file `~/.config/duolingo/config` is not visible inside the
+container, so pass the credentials as environment variables.
+
 ---
 
 ## MCP Server
@@ -133,7 +166,16 @@ npm install -g @udondan/duolingo
 DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt duolingo mcp
 ```
 
-**Option C — clone and build from source:**
+**Option C — run the Docker image:**
+
+```bash
+docker run --rm -i -e DUOLINGO_USERNAME -e DUOLINGO_JWT udondan/duolingo
+```
+
+Without arguments, the image starts the MCP server. `-i` keeps stdin open,
+which the server uses to talk to the client.
+
+**Option D — clone and build from source:**
 
 ```bash
 git clone https://github.com/udondan/duolingo.git
@@ -161,6 +203,33 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
+With Docker instead of `npx`, the entry looks like this. `-e NAME` without a
+value passes the variable from `env` to the container:
+
+```json
+{
+  "mcpServers": {
+    "duolingo": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "DUOLINGO_USERNAME",
+        "-e",
+        "DUOLINGO_JWT",
+        "udondan/duolingo"
+      ],
+      "env": {
+        "DUOLINGO_USERNAME": "your_username",
+        "DUOLINGO_JWT": "your_jwt_token"
+      }
+    }
+  }
+}
+```
+
 ### Claude Code
 
 ```bash
@@ -173,6 +242,52 @@ Then set the environment variables before starting Claude Code:
 export DUOLINGO_USERNAME="your_username"
 export DUOLINGO_JWT="your_jwt_token"
 ```
+
+### Docker MCP Toolkit
+
+With the [Docker MCP Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/)
+of Docker Desktop, the server runs as a container behind the MCP Gateway. The
+gateway starts the container on demand and passes its tools on to the connected
+clients. The credentials are stored as secrets in Docker Desktop instead of in
+plain text in the client configuration.
+
+Requires Docker Desktop with the MCP Toolkit enabled.
+
+1. Download the server definition [`docker-mcp.yml`](docker-mcp.yml) and add it
+   to a Toolkit profile. The Toolkit only reads such files from its catalogs
+   directory:
+
+   ```bash
+   mkdir -p ~/.docker/mcp/catalogs
+   curl -fsSL https://raw.githubusercontent.com/udondan/duolingo/main/docker-mcp.yml -o ~/.docker/mcp/catalogs/duolingo.yml
+
+   # new profile "duolingo" ...
+   docker mcp profile create --name duolingo --id duolingo --server "file://$HOME/.docker/mcp/catalogs/duolingo.yml"
+   # ... or add it to an existing profile
+   docker mcp profile server add default --server "file://$HOME/.docker/mcp/catalogs/duolingo.yml"
+   ```
+
+   The profile keeps the image at the version it had when it was added. Run
+   `profile server add` again to update.
+
+2. Store the credentials as secrets (see [Getting Your JWT Token](#getting-your-jwt-token)):
+
+   ```bash
+   docker mcp secret set duolingo.username=your_username
+   docker mcp secret set duolingo.jwt=your_jwt_token
+   ```
+
+3. Connect a client to the profile:
+
+   ```bash
+   docker mcp client connect claude-desktop --profile duolingo
+   ```
+
+   `docker mcp client connect --help` lists more clients such as `claude-code`,
+   `cursor` or `vscode`. This also works in Docker Desktop under _MCP Toolkit_.
+
+`docker mcp gateway run --profile duolingo --dry-run --verbose` checks the setup
+without starting a client. The output should end with `duolingo: (N tools)`.
 
 ### Available Tools
 
