@@ -14,12 +14,15 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
-          cache: npm
+          # No cache in the release build, so a poisoned cache entry can't end up in the package.
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
