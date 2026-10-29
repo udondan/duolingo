@@ -220,7 +220,8 @@ export async function learnedSkillsView(opts: LanguageQuery): Promise<View> {
 
   const learnedSkills = allSkills
     .filter((s) => s.learned)
-    .sort((a, b) => (a.dependency_order ?? 0) - (b.dependency_order ?? 0));
+    // computeDependencyOrder sets dependency_order on every skill
+    .sort((a, b) => Number(a.dependency_order) - Number(b.dependency_order));
   const abbr = opts.language_abbr;
 
   return {
