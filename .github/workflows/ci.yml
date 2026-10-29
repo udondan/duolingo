@@ -154,9 +154,49 @@ jobs:
           done
           echo "::warning::Codecov didn't report within 5 minutes, coverage is not checked."
 
+  # Builds the image and runs it the way the Docker MCP Toolkit does, through
+  # a profile and the gateway. Needs no Duolingo credentials: the tools are
+  # registered without calling the API.
+  docker:
+    name: Docker
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
+        with:
+          install_args: github:docker/mcp-gateway
+
+      - name: Install docker mcp plugin
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          ln -s "$(mise which docker-mcp)" ~/.docker/cli-plugins/docker-mcp
+          docker mcp version
+
+      - run: mise run docker-build
+
+      - name: Run the CLI in the image
+        run: |
+          docker run --rm udondan/duolingo --version
+          docker run --rm udondan/duolingo --help
+
+      - run: mise run docker-register ci
+
+      # The gateway only verifies signatures of images under mcp/, and finds
+      # the locally built image without pulling it.
+      - name: List tools through the gateway
+        run: |
+          docker mcp gateway run --profile ci --dry-run --verbose 2>&1 | tee gateway.log
+          grep -E "duolingo: \([1-9][0-9]* tools\)" gateway.log
+
   # The only test check the ruleset requires, whatever jobs are added later.
   required:
-    needs: [wait-for-turn, ci, coverage, actions]
+    needs: [wait-for-turn, ci, coverage, actions, docker]
     if: always()
     runs-on: ubuntu-latest
     steps:

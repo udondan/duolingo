@@ -1,19 +1,16 @@
----
-registry:
-  duolingo-mcp:
-    title: Duolingo MCP
-    description: Duolingo API client exposed as an MCP server
-    image: mcp/duolingo-mcp:latest
-    type: server
-    tools: []
-    secrets:
-      - name: duolingo-mcp.username
-        env: DUOLINGO_USERNAME
-        example: your_duolingo_username
-        description: Your Duolingo username
-      - name: duolingo-mcp.jwt
-        env: DUOLINGO_JWT
-        example: your_jwt_token
-        description: Your Duolingo JWT token (extract from browser cookies)
+# Server definition for the Docker MCP Toolkit.
+# Add it to a profile with `mise run docker-register` (see README, section Docker MCP Toolkit).
 name: duolingo
-displayName: Duolingo
+type: server
+image: udondan/duolingo:latest
+title: Duolingo
+description: Duolingo profile, streak, courses, XP progress, friends, shop and more via the unofficial Duolingo API
+secrets:
+  - name: duolingo.username
+    env: DUOLINGO_USERNAME
+    example: your_duolingo_username
+    description: Your Duolingo username
+  - name: duolingo.jwt
+    env: DUOLINGO_JWT
+    example: your_jwt_token
+    description: Your Duolingo JWT token (see README, section Getting Your JWT Token)
