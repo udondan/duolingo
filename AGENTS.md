@@ -1,14 +1,20 @@
 # Agent Guidelines — duolingo
 
-TypeScript MCP server that wraps the unofficial Duolingo REST API. Uses the
-MCP SDK with stdio transport, Zod for input validation, and Axios for HTTP.
+TypeScript SDK, CLI and MCP server for the unofficial Duolingo REST API. Uses
+the MCP SDK with stdio transport, commander for the CLI, Zod for input
+validation, and Axios for HTTP.
 
 ---
 
 ## Project Overview
 
-- **Entry points:** `src/server.ts` (MCP binary), `src/index.ts` (library)
-- **Auth:** `DUOLINGO_USERNAME` + `DUOLINGO_JWT` environment variables
+- **Entry points:** `src/index.ts` (library), `src/cli.ts` (`duolingo`
+  binary; `duolingo mcp` starts the MCP server from `src/mcp.ts`)
+- **Layers:** `src/views/` fetch data and build a `View` (`data` for JSON,
+  `markdown()` for text). MCP tools (`src/tools/`) and CLI commands
+  (`src/cli/program.ts`) are thin wrappers around the same views.
+- **Auth:** `DUOLINGO_USERNAME` + `DUOLINGO_JWT` environment variables (the
+  CLI also reads `~/.config/duolingo/config`, mode 0600)
 - **Design:** Read-first; all tools are read-only (no writes to Duolingo)
 - **Tool naming:** `duolingo_<action>_<resource>` pattern (snake_case)
 - **Server name:** `duolingo_mcp`
@@ -133,9 +139,10 @@ DuolingoClientError (base)
 ```
 
 - Each subclass sets `this.name` explicitly for reliable `instanceof` checks
-- MCP tool handlers always wrap logic in `try/catch` and return errors as
-  `{ content: [{ type: 'text', text: handleError(err) }] }` — never throw
-  out of a tool handler
+- MCP tool handlers use `reply(load, response_format)` from
+  `src/tools/helpers.ts`, which renders the view and turns errors into
+  `handleError(err)` text — never throw out of a tool handler
+- The CLI prints errors as `[duolingo] Error: ...` on stderr and exits 1
 - `handleError(err: unknown)` in `src/tools/helpers.ts` type-narrows to each
   custom error and returns a user-facing `"Error: ..."` string
 
@@ -169,22 +176,15 @@ server.registerTool(
       openWorldHint: true,
     },
   },
-  async ({ username, response_format }) => {
-    try {
-      const client = getClient();
-      const data = await client.getFoo(username);
-      if (response_format === 'json') {
-        return {
-          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
-        };
-      }
-      return { content: [{ type: 'text', text: formatMarkdown(data) }] };
-    } catch (err) {
-      return { content: [{ type: 'text', text: handleError(err) }] };
-    }
-  },
+  ({ username, response_format }) =>
+    reply(() => fooView({ username }), response_format),
 );
 ```
+
+`fooView` lives in `src/views/` and returns `{ data, markdown }` (plus an
+optional `message` for empty results; use `notFound(message)` when nothing
+was found). Add a matching command in `src/cli/program.ts` for every new
+tool.
 
 **Required for every tool:**
 
@@ -192,7 +192,7 @@ server.registerTool(
 - Zod input validation via `inputSchema`
 - All four MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
   `openWorldHint`)
-- `try/catch` with `handleError` in the handler
+- The handler goes through `reply()` so errors become `handleError` text
 
 **Required for tools that return structured data:**
 
@@ -217,8 +217,10 @@ Shared schemas (`src/tools/helpers.ts`):
   client unit tests
 - **Tool tests:** call tools via the shared `callTool(server, name, args)`
   helper in `tests/helpers.ts`
-- **MCP protocol tests:** `tests/server/mcp.test.ts` spins up a real
-  `McpServer` with `InMemoryTransport` — add new tools to the expected list
+- **MCP protocol tests:** `tests/server/mcp.test.ts` spins up the server from
+  `createServer()` with `InMemoryTransport` — add new tools to the expected list
+- **CLI tests:** `tests/cli/program.test.ts` runs `main([...])` in-process with
+  a mocked client and captured stdout/stderr — add every new command there
 - **Package surface tests:** `tests/package/exports.test.ts` imports only from
   `src/index.ts`; add new public exports there
 - **Integration tests:** `tests/integration/` hit the live Duolingo API and

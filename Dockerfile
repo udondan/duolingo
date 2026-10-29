@@ -20,4 +20,4 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /build/dist ./dist
 
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/cli.js", "mcp"]

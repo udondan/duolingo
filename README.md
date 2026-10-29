@@ -1,6 +1,7 @@
 # @udondan/duolingo
 
-A TypeScript package that provides both a **Duolingo API client library** and an
+A TypeScript package that provides a **Duolingo API client library**, a
+**command line interface** (`duolingo`) and an
 **[MCP](https://modelcontextprotocol.io) server** for LLM agents (e.g. Claude).
 
 Built natively in TypeScript against the unofficial Duolingo REST API — no third-party
@@ -9,6 +10,10 @@ Duolingo library dependency.
 ## Table of Contents
 
 - [Getting Your JWT Token](#getting-your-jwt-token)
+- [CLI](#cli)
+  - [Installation](#cli-installation)
+  - [Credentials](#credentials)
+  - [Commands](#commands)
 - [MCP Server](#mcp-server)
   - [Installation](#mcp-installation)
   - [Claude Desktop](#claude-desktop)
@@ -24,7 +29,7 @@ Duolingo library dependency.
 
 ## Getting Your JWT Token
 
-Both the MCP server and the library require a Duolingo JWT token for authentication.
+The CLI, the MCP server and the library all require a Duolingo JWT token for authentication.
 
 1. Log in to [duolingo.com](https://www.duolingo.com) in your browser.
 2. Open the browser developer console (F12 → Console tab).
@@ -38,6 +43,79 @@ Both the MCP server and the library require a Duolingo JWT token for authenticat
 
 ---
 
+## CLI
+
+### CLI Installation
+
+```bash
+npm install -g @udondan/duolingo
+duolingo --help
+```
+
+Or run it without installing: `npx -y @udondan/duolingo --help`.
+
+### Credentials
+
+The CLI reads `DUOLINGO_USERNAME` and `DUOLINGO_JWT` from the environment. You
+can also put them in `~/.config/duolingo/config`:
+
+```bash
+mkdir -p ~/.config/duolingo
+cat > ~/.config/duolingo/config <<'EOF'
+DUOLINGO_USERNAME=your_username
+DUOLINGO_JWT=your_jwt_token
+EOF
+chmod 0600 ~/.config/duolingo/config
+```
+
+The file is only read when no other user can access it (mode `0600`).
+Environment variables take precedence over the file.
+
+### Commands
+
+Output is JSON by default. Use `--format markdown` (or `-f markdown`) for the
+same readable text the MCP tools return.
+
+```bash
+duolingo streak
+duolingo --format markdown progress es
+duolingo known-words fr --username someone
+duolingo leaderboard --unit month
+```
+
+| Command | Description |
+|---------|-------------|
+| `user [-u name]` | Profile: name, bio, location, followers, languages |
+| `settings` | Account settings |
+| `streak [-u name]` | Current streak, daily goal and longest streak |
+| `xp` | XP earned and lessons completed today |
+| `languages [-u name] [-a]` | Languages being learned (`-a` for abbreviations) |
+| `courses [-u name]` | All courses, including Math, Chess and Music |
+| `friends` | Users the authenticated user follows |
+| `calendar [-u name]` | Recent activity of the current course |
+| `leaderboard [--unit week\|month]` | Friends ranked by XP |
+| `shop` | Shop items and prices |
+| `health` | Hearts and refill status |
+| `currencies` | Gem and lingot balances |
+| `streak-goal` | Current streak goal and checkpoints |
+| `language <name> [-u name]` | Level, points and streak of a language (e.g. `French`) |
+| `progress <abbr>` | Detailed progress in a language (e.g. `fr`) |
+| `known-topics <abbr> [-u name]` | Learned topics |
+| `unknown-topics <abbr> [-u name]` | Topics not learned yet |
+| `golden-topics <abbr> [-u name]` | Fully mastered topics |
+| `reviewable-topics <abbr> [-u name]` | Learned topics that need review |
+| `known-words <abbr> [-u name]` | Words learned |
+| `learned-skills <abbr> [-u name]` | Learned skills in learning order |
+| `voices [abbr]` | Text-to-speech voices |
+| `audio-url <word> [abbr] [--voice v] [--no-random]` | Pronunciation audio URL |
+| `language-name <abbr> [-u name]` | Full name of a language (`fr` → `French`) |
+| `abbreviation <name> [-u name]` | Abbreviation of a language (`French` → `fr`) |
+| `mcp` | Start the MCP server (stdio) |
+
+Errors go to stderr and the CLI exits with code 1.
+
+---
+
 ## MCP Server
 
 ### MCP Installation
@@ -45,14 +123,14 @@ Both the MCP server and the library require a Duolingo JWT token for authenticat
 **Option A — run directly with npx (no install needed):**
 
 ```bash
-DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt npx @udondan/duolingo
+DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt npx -y @udondan/duolingo mcp
 ```
 
 **Option B — install globally:**
 
 ```bash
 npm install -g @udondan/duolingo
-DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt duolingo-mcp
+DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt duolingo mcp
 ```
 
 **Option C — clone and build from source:**
@@ -61,7 +139,7 @@ DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt duolingo-mcp
 git clone https://github.com/udondan/duolingo.git
 cd duolingo
 npm install && npm run build
-node dist/server.js
+node dist/cli.js mcp
 ```
 
 ### Claude Desktop
@@ -73,7 +151,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "duolingo": {
       "command": "npx",
-      "args": ["-y", "@udondan/duolingo"],
+      "args": ["-y", "@udondan/duolingo", "mcp"],
       "env": {
         "DUOLINGO_USERNAME": "your_username",
         "DUOLINGO_JWT": "your_jwt_token"
@@ -86,7 +164,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ### Claude Code
 
 ```bash
-claude mcp add duolingo -- npx -y @udondan/duolingo
+claude mcp add duolingo -- npx -y @udondan/duolingo mcp
 ```
 
 Then set the environment variables before starting Claude Code:
@@ -343,15 +421,25 @@ npm run dev
 ```
 src/
 ├── index.ts           # Library entry point — exports client, types, errors
-├── server.ts          # MCP server entry point (stdio transport)
+├── cli.ts             # `duolingo` binary
+├── mcp.ts             # MCP server (stdio transport), started by `duolingo mcp`
+├── version.ts         # Package version
+├── cli/
+│   ├── program.ts     # CLI commands (commander)
+│   └── config-file.ts # ~/.config/duolingo/config loader
 ├── client/
 │   ├── duolingo.ts    # DuolingoClient — all API methods
 │   ├── types.ts       # TypeScript interfaces for all API responses
 │   └── errors.ts      # Custom error classes
+├── views/
+│   ├── account.ts     # Account queries: data + markdown
+│   ├── language.ts    # Language queries: data + markdown
+│   ├── utils.ts       # Language name/abbreviation lookups
+│   └── view.ts        # View type and rendering
 └── tools/
-    ├── account.ts     # Account tools (13)
-    ├── language.ts    # Language tools (11)
-    ├── shop.ts        # Utility tools (2)
+    ├── account.ts     # Account tools
+    ├── language.ts    # Language tools
+    ├── shop.ts        # Utility tools
     └── helpers.ts     # Shared utilities (error handling, Zod schemas)
 ```
 
