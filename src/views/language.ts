@@ -302,8 +302,7 @@ export async function audioUrlView(opts: {
   if (random) {
     const voices = await client.getLanguageVoices(langAbbr);
     if (voices.length > 0) {
-      const selectedVoice =
-        voices[Math.floor(Math.random() * voices.length)] ?? voices[0];
+      const selectedVoice = voices[Math.floor(Math.random() * voices.length)];
       return textView(
         await client.buildAudioUrl(word, langAbbr, selectedVoice),
       );

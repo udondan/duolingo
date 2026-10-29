@@ -207,14 +207,12 @@ export async function languagesView(opts: {
   const userId = await resolveUserId(client, opts.username);
   const v2 = await client.getUserDataV2(userId);
   // Filter to language courses only (not math/chess/music)
-  const langCourses = v2.courses.filter(
-    (c) => c.subject === 'language' && c.learningLanguage !== undefined,
-  );
-  const languages = langCourses.map((c) =>
-    opts.abbreviations
-      ? (c.learningLanguage ?? c.topic)
-      : (c.title ?? c.learningLanguage ?? c.topic),
-  );
+  const languages = v2.courses.flatMap((c) => {
+    if (c.subject !== 'language' || c.learningLanguage === undefined) return [];
+    return [
+      opts.abbreviations ? c.learningLanguage : (c.title ?? c.learningLanguage),
+    ];
+  });
 
   return {
     data: languages,
