@@ -2,29 +2,19 @@
  * Shared utilities for MCP tool handlers.
  */
 
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import {
-  DuolingoClientError,
-  DuolingoAuthError,
-  DuolingoNotFoundError,
-  DuolingoCaptchaError,
-} from '../client/errors.js';
-import type { DuolingoSkill } from '../client/types.js';
+import { DuolingoClientError } from '../client/errors.js';
+import { renderView, type ResponseFormat, type View } from '../views/view.js';
 
 // ---------------------------------------------------------------------------
-// Response format
+// Shared field schemas
 // ---------------------------------------------------------------------------
 
 export const ResponseFormatSchema = z
   .enum(['markdown', 'json'])
   .default('markdown')
   .describe("Output format: 'markdown' or 'json'.");
-
-export type ResponseFormat = z.infer<typeof ResponseFormatSchema>;
-
-// ---------------------------------------------------------------------------
-// Shared field schemas
-// ---------------------------------------------------------------------------
 
 export const UsernameFieldSchema = z
   .string()
@@ -34,23 +24,22 @@ export const UsernameFieldSchema = z
       "Use this to look up another user's public data.",
   );
 
+/** Annotations shared by all tools: they only read from Duolingo. */
+export const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
 // ---------------------------------------------------------------------------
-// Error handling
+// Replies
 // ---------------------------------------------------------------------------
 
 /**
  * Convert any error into a user-friendly string for MCP tool responses.
  */
 export function handleError(err: unknown): string {
-  if (err instanceof DuolingoAuthError) {
-    return `Error: ${err.message}`;
-  }
-  if (err instanceof DuolingoCaptchaError) {
-    return `Error: ${err.message}`;
-  }
-  if (err instanceof DuolingoNotFoundError) {
-    return `Error: ${err.message}`;
-  }
   if (err instanceof DuolingoClientError) {
     return `Error: ${err.message}`;
   }
@@ -60,49 +49,16 @@ export function handleError(err: unknown): string {
   return `Error: Unknown error — ${String(err)}`;
 }
 
-// ---------------------------------------------------------------------------
-// Dependency order computation (topological sort for learned skills)
-// ---------------------------------------------------------------------------
-
-/**
- * Compute dependency order for all skills using topological sort.
- * Mutates the `dependency_order` field on each skill object.
- */
-export function computeDependencyOrder(skills: DuolingoSkill[]): void {
-  const skillsDict = new Map<string, DuolingoSkill>();
-  for (const skill of skills) {
-    skillsDict.set(skill.name, skill);
+/** Build the view and render it as the text reply of a tool. */
+export async function reply(
+  load: () => Promise<View>,
+  format: ResponseFormat = 'markdown',
+): Promise<CallToolResult> {
+  let text: string;
+  try {
+    text = renderView(await load(), format);
+  } catch (err) {
+    text = handleError(err);
   }
-  for (const skill of skills) {
-    getSkillOrdinal(skillsDict, skill, []);
-  }
-}
-
-function getSkillOrdinal(
-  skillsDict: Map<string, DuolingoSkill>,
-  skill: DuolingoSkill,
-  breadcrumbs: string[],
-): number {
-  if (breadcrumbs.includes(skill.name)) {
-    // Loop detected — assign order 1 to break the cycle
-    skill.dependency_order = 1;
-    return 1;
-  }
-  if (skill.dependency_order !== undefined) {
-    return skill.dependency_order;
-  }
-  if (skill.dependencies_name.length === 0) {
-    skill.dependency_order = 1;
-    return 1;
-  }
-
-  const newBreadcrumbs = [...breadcrumbs, skill.name];
-  const depOrders = skill.dependencies_name
-    .map((name) => skillsDict.get(name))
-    .filter((dep): dep is DuolingoSkill => dep !== undefined)
-    .map((dep) => getSkillOrdinal(skillsDict, dep, newBreadcrumbs));
-
-  const order = 1 + (depOrders.length > 0 ? Math.max(...depOrders) : 0);
-  skill.dependency_order = order;
-  return order;
+  return { content: [{ type: 'text', text }] };
 }

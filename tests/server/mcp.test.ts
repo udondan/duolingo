@@ -10,12 +10,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { registerAccountTools } from '../../src/tools/account.js';
-import { registerLanguageTools } from '../../src/tools/language.js';
-import { registerShopTools } from '../../src/tools/shop.js';
+import { createServer } from '../../src/mcp.js';
 import * as duolingoModule from '../../src/client/duolingo.js';
 import type { DuolingoClient } from '../../src/client/duolingo.js';
 import type {
@@ -158,10 +156,7 @@ async function createMcpPair(): Promise<{
   client: Client;
   cleanup: () => Promise<void>;
 }> {
-  const server = new McpServer({ name: 'duolingo_mcp', version: '1.0.0' });
-  registerAccountTools(server);
-  registerLanguageTools(server);
-  registerShopTools(server);
+  const server = createServer();
 
   const [serverTransport, clientTransport] =
     InMemoryTransport.createLinkedPair();
