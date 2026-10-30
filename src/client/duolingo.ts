@@ -298,11 +298,10 @@ export class DuolingoClient {
       return [...cached];
     }
 
-    const userData = await this.getUserData();
-    const langData = userData.language_data?.[langAbbr];
-    const fromLanguage = langData ? (langAbbr !== 'en' ? 'en' : 'de') : 'en';
-
-    const session = await this.getGlobalPracticeSession(langAbbr, fromLanguage);
+    const session = await this.getGlobalPracticeSession(
+      langAbbr,
+      await this.getFromLanguage(langAbbr),
+    );
 
     const voices = new Set<string>();
     if (session) {
@@ -333,8 +332,8 @@ export class DuolingoClient {
     langAbbr: string,
     voice?: string,
   ): Promise<string> {
-    const ttsBaseUrl = await this.getTtsBaseUrl();
-    const base = ttsBaseUrl.endsWith('/') ? ttsBaseUrl : `${ttsBaseUrl}/`;
+    // Always ends with a slash, see normalizeTtsBaseUrl()
+    const base = await this.getTtsBaseUrl();
     const encodedWord = encodeURIComponent(word);
     if (voice) {
       return `${base}tts/${langAbbr}/${voice}/token/${encodedWord}`;
@@ -406,20 +405,39 @@ export class DuolingoClient {
    * Uses GLOBAL_PRACTICE (the only supported session type in the current API).
    */
   async populateVoiceUrlDictionary(langAbbr: string): Promise<void> {
-    if (!this.voiceUrlDict.has(langAbbr)) {
-      this.voiceUrlDict.set(langAbbr, new Map());
+    await this.loadVoiceUrlDictionary(langAbbr);
+  }
+
+  /**
+   * Get the voice URL dictionary for a language, populating it if needed.
+   */
+  async getVoiceUrlDictionary(
+    langAbbr: string,
+  ): Promise<Map<string, Set<string>>> {
+    return (
+      this.voiceUrlDict.get(langAbbr) ??
+      (await this.loadVoiceUrlDictionary(langAbbr))
+    );
+  }
+
+  /**
+   * Add the words of a practice session to the voice URL dictionary of a
+   * language and return the dictionary.
+   */
+  private async loadVoiceUrlDictionary(
+    langAbbr: string,
+  ): Promise<Map<string, Set<string>>> {
+    let langDict = this.voiceUrlDict.get(langAbbr);
+    if (langDict === undefined) {
+      langDict = new Map<string, Set<string>>();
+      this.voiceUrlDict.set(langAbbr, langDict);
     }
-    // Safe: we just set it above if it wasn't present
-    const langDict =
-      this.voiceUrlDict.get(langAbbr) ?? new Map<string, Set<string>>();
-    this.voiceUrlDict.set(langAbbr, langDict);
 
-    const userData = await this.getUserData();
-    const langData = userData.language_data?.[langAbbr];
-    const fromLanguage = langData ? (langAbbr !== 'en' ? 'en' : 'de') : 'en';
-
-    const session = await this.getGlobalPracticeSession(langAbbr, fromLanguage);
-    if (!session) return;
+    const session = await this.getGlobalPracticeSession(
+      langAbbr,
+      await this.getFromLanguage(langAbbr),
+    );
+    if (!session) return langDict;
 
     for (const challenge of session.challenges) {
       if (challenge.prompt && challenge.tts) {
@@ -436,23 +454,22 @@ export class DuolingoClient {
         this.addTokenListToVoiceUrlDict(langDict, challenge.tokens);
       }
     }
-  }
-
-  /**
-   * Get the voice URL dictionary for a language, populating it if needed.
-   */
-  async getVoiceUrlDictionary(
-    langAbbr: string,
-  ): Promise<Map<string, Set<string>>> {
-    if (!this.voiceUrlDict.has(langAbbr)) {
-      await this.populateVoiceUrlDictionary(langAbbr);
-    }
-    return this.voiceUrlDict.get(langAbbr) ?? new Map();
+    return langDict;
   }
 
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * The source language to request a practice session in: English, or German
+   * for English itself. Languages the user doesn't learn always use English.
+   */
+  private async getFromLanguage(langAbbr: string): Promise<string> {
+    const userData = await this.getUserData();
+    const langData = userData.language_data?.[langAbbr];
+    return langData && langAbbr === 'en' ? 'de' : 'en';
+  }
 
   /**
    * Extract the voice name from a Duolingo TTS CDN URL.
@@ -463,8 +480,10 @@ export class DuolingoClient {
   private extractVoiceFromTtsUrl(url?: string): string | null {
     if (!url) return null;
     // Modern format: .../tts/<lang>/<voice>/token/<word>
-    const modern = /cloudfront\.net\/tts\/[^/]+\/([^/]+)\/token\//.exec(url);
-    if (modern) return modern[1] ?? null;
+    const modern = /cloudfront\.net\/tts\/[^/]+\/([^/]+)\/token\//.exec(
+      url,
+    )?.[1];
+    if (modern !== undefined) return modern;
     // Legacy format: .../<voice>/<hash> — only applies to non-/tts/ URLs
     if (url.includes('/tts/')) return null;
     const legacy = /cloudfront\.net\/([^/]+)\/[^/]+$/.exec(url);
@@ -515,14 +534,10 @@ export class DuolingoClient {
     }
   }
 
-  private async makeRequest<T>(url: string, data?: unknown): Promise<T> {
+  private async makeRequest<T>(url: string): Promise<T> {
     let resp: AxiosResponse<T>;
     try {
-      if (data !== undefined) {
-        resp = await this.http.post<T>(url, data);
-      } else {
-        resp = await this.http.get<T>(url);
-      }
+      resp = await this.http.get<T>(url);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
         const status = err.response.status;
