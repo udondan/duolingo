@@ -12,6 +12,9 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       include: ['src/**/*.ts'],
       exclude: ['src/cli.ts'],
+      // The unit tests alone must cover everything, as the live tests are
+      // skipped without credentials.
+      thresholds: { 100: true },
     },
   },
 });
