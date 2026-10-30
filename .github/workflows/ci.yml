@@ -34,7 +34,7 @@ jobs:
     steps:
       # Queue order: manual PRs first, then Renovate updates.
       - name: Wait for turn
-        uses: udondan/wait-for-turn@bf890d60b9e238c05c224dbfb03442bdc09bde72 # v1.4.0
+        uses: udondan/wait-for-turn@929d8e37d13c53ddf24ad42f11e4dbfef945d436 # v1.4.2
         with:
           label-weights: |
             renovate=-5
