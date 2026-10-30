@@ -7,6 +7,7 @@ import {
 import {
   DuolingoAuthError,
   DuolingoCaptchaError,
+  DuolingoClientError,
   DuolingoNotFoundError,
 } from '../../src/client/errors.js';
 import type { DuolingoUserData } from '../../src/client/types.js';
@@ -124,6 +125,20 @@ function makeClientWithMockHttp(
   // Inject mock http
   (client as unknown as { http: typeof mockHttp }).http = mockHttp;
   return client;
+}
+
+interface HttpMock {
+  get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
+}
+
+function httpMock(client: DuolingoClient): HttpMock {
+  return (client as unknown as { http: HttpMock }).http;
+}
+
+/** The body of the last POST request of the client. */
+function postBody(client: DuolingoClient): unknown {
+  return httpMock(client).post.mock.calls.at(-1)![1];
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +425,464 @@ describe('DuolingoClient', () => {
 
       // Only one POST to sessions (first call), second uses cache
       expect(mockPost).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores challenges and annotations without a voice', async () => {
+      const mockSession = {
+        challenges: [
+          { prompt: 'hola' },
+          {
+            prompt: 'gracias',
+            tts: 'https://d7mj4aqfscim2.cloudfront.net/tts/es/gracias',
+          },
+        ],
+        ttsAnnotations: {
+          'https://example.com/not-a-tts-url': {},
+        },
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: mockSession }],
+        ]),
+      );
+      expect(await client.getLanguageVoices('es')).toEqual([]);
+    });
+
+    it('handles a session without ttsAnnotations', async () => {
+      const mockSession = {
+        challenges: [
+          {
+            prompt: 'hola',
+            tts: 'https://d1vq87e9lcf771.cloudfront.net/beaes/abc123',
+          },
+        ],
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: mockSession }],
+        ]),
+      );
+      expect(await client.getLanguageVoices('es')).toEqual(['beaes']);
+    });
+
+    it('requests the session from German for English', async () => {
+      const userData = {
+        ...MOCK_USER_DATA,
+        language_data: { en: MOCK_USER_DATA.language_data!.fr! },
+      };
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: userData }],
+          ['/2017-06-30/sessions', { status: 200, data: { challenges: [] } }],
+        ]),
+      );
+      await client.getLanguageVoices('en');
+      expect(postBody(client)).toMatchObject({
+        fromLanguage: 'de',
+        learningLanguage: 'en',
+      });
+    });
+
+    it('requests the session from English for a learned language', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: { challenges: [] } }],
+        ]),
+      );
+      await client.getLanguageVoices('fr');
+      expect(postBody(client)).toMatchObject({ fromLanguage: 'en' });
+    });
+
+    it('requests the session from English for English if not learned', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', { status: 200, data: { challenges: [] } }],
+        ]),
+      );
+      await client.getLanguageVoices('en');
+      expect(postBody(client)).toMatchObject({ fromLanguage: 'en' });
+    });
+
+    it('works for users without language data', async () => {
+      const { language_data: _, ...userData } = MOCK_USER_DATA;
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: userData }],
+          ['/2017-06-30/sessions', { status: 200, data: { challenges: [] } }],
+        ]),
+      );
+      await client.getLanguageVoices('en');
+      expect(postBody(client)).toMatchObject({ fromLanguage: 'en' });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Error handling of GET requests
+  // -------------------------------------------------------------------------
+  describe('request errors', () => {
+    it('throws DuolingoClientError on other HTTP errors', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 500, data: { error: 'boom' } }],
+        ]),
+      );
+      await expect(client.getUserData()).rejects.toThrow(
+        new DuolingoClientError('Duolingo API error 500: {"error":"boom"}'),
+      );
+    });
+
+    it('re-throws errors without a response', async () => {
+      const client = makeClientWithMockHttp(new Map());
+      await expect(client.getUserData()).rejects.toThrow('Network error');
+    });
+
+    it('clears the whole cache with invalidateCache() without username', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([['/users/', { status: 200, data: MOCK_USER_DATA }]]),
+      );
+      await client.getUserData();
+      await client.getUserData('otheruser');
+      client.invalidateCache();
+      await client.getUserData();
+      await client.getUserData('otheruser');
+      expect(httpMock(client).get).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getUserIdByUsername / getUserDataV2
+  // -------------------------------------------------------------------------
+  describe('getUserIdByUsername', () => {
+    it('returns the ID of the user', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          [
+            '/2023-05-23/users?fields=users%7Bid%7D&username=other%20user',
+            { status: 200, data: { users: [{ id: 777 }] } },
+          ],
+        ]),
+      );
+      expect(await client.getUserIdByUsername('other user')).toBe(777);
+    });
+
+    it('throws DuolingoNotFoundError for unknown users', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([['/2023-05-23/users?', { status: 200, data: { users: [] } }]]),
+      );
+      await expect(client.getUserIdByUsername('nobody')).rejects.toThrow(
+        new DuolingoNotFoundError("User 'nobody' not found."),
+      );
+    });
+  });
+
+  describe('getUserDataV2', () => {
+    const v2 = { id: 777, username: 'other', totalXp: 100, courses: [] };
+
+    function makeV2Client(): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          [
+            '/2023-05-23/users?',
+            { status: 200, data: { users: [{ id: 777 }] } },
+          ],
+          ['/2023-05-23/users/777?fields=', { status: 200, data: v2 }],
+        ]),
+      );
+    }
+
+    it('fetches the data by numeric ID', async () => {
+      const client = makeV2Client();
+      expect(await client.getUserDataV2(777)).toEqual(v2);
+      expect(httpMock(client).get).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats a numeric string as ID', async () => {
+      const client = makeV2Client();
+      expect(await client.getUserDataV2('777')).toEqual(v2);
+      expect(httpMock(client).get).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves a username to the ID first', async () => {
+      const client = makeV2Client();
+      expect(await client.getUserDataV2('other')).toEqual(v2);
+      expect(httpMock(client).get).toHaveBeenCalledTimes(2);
+    });
+
+    it('treats a string that only starts with digits as username', async () => {
+      const client = makeV2Client();
+      await client.getUserDataV2('777abc');
+      expect(httpMock(client).get.mock.calls[0]![0]).toContain(
+        'username=777abc',
+      );
+    });
+
+    it('caches the data per user ID', async () => {
+      const client = makeV2Client();
+      await client.getUserDataV2(777);
+      await client.getUserDataV2('777');
+      expect(httpMock(client).get).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Simple endpoints
+  // -------------------------------------------------------------------------
+  describe('endpoints of the authenticated user', () => {
+    function makeEndpointClient(key: string, data: unknown): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          [key, { status: 200, data }],
+        ]),
+      );
+    }
+
+    it('getFollowers returns the followers', async () => {
+      const users = [{ userId: 1, username: 'fan' }];
+      const client = makeEndpointClient('/friends/users/42/followers', {
+        followers: { users },
+      });
+      expect(await client.getFollowers(42)).toEqual(users);
+      expect(httpMock(client).get.mock.calls[1]![0]).toContain(
+        'viewerId=12345',
+      );
+    });
+
+    it('getShopItems returns the shop items', async () => {
+      const shopItems = [{ id: 'streak_freeze', price: 200 }];
+      const client = makeEndpointClient('/2023-05-23/shop-items', {
+        shopItems,
+      });
+      expect(await client.getShopItems()).toEqual(shopItems);
+    });
+
+    it('getHealth returns the health', async () => {
+      const health = { hearts: 5, maxHearts: 5 };
+      const client = makeEndpointClient('/users/12345?fields=health', {
+        health,
+      });
+      expect(await client.getHealth()).toEqual(health);
+    });
+
+    it('getCurrencies returns gems and lingots only', async () => {
+      const client = makeEndpointClient('/users/12345?fields=gems,lingots', {
+        gems: 500,
+        lingots: 20,
+        other: true,
+      });
+      expect(await client.getCurrencies()).toEqual({ gems: 500, lingots: 20 });
+    });
+
+    it('getStreakGoalCurrent returns the streak goal', async () => {
+      const goal = { hasActiveGoal: true };
+      const client = makeEndpointClient(
+        '/users/12345/streak-goal-current',
+        goal,
+      );
+      expect(await client.getStreakGoalCurrent()).toEqual(goal);
+    });
+
+    it('getStreakGoalNextOptions returns the options', async () => {
+      const options = { nextOptions: [7, 14] };
+      const client = makeEndpointClient(
+        '/users/12345/streak-goal-next-options',
+        options,
+      );
+      expect(await client.getStreakGoalNextOptions()).toEqual(options);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getTtsBaseUrl / buildAudioUrl
+  // -------------------------------------------------------------------------
+  describe('buildAudioUrl', () => {
+    function makeTtsClient(ttsBaseUrl?: string): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          [
+            '/users/testuser',
+            {
+              status: 200,
+              data: { ...MOCK_USER_DATA, tts_base_url: ttsBaseUrl },
+            },
+          ],
+        ]),
+      );
+    }
+
+    it('uses the fallback CDN without tts_base_url', async () => {
+      const client = makeTtsClient();
+      expect(await client.getTtsBaseUrl()).toBe(
+        'https://d7mj4aqfscim2.cloudfront.net/',
+      );
+    });
+
+    it('normalizes tts_base_url to HTTPS with a trailing slash', async () => {
+      const client = makeTtsClient('http://cdn.example.com');
+      expect(await client.getTtsBaseUrl()).toBe('https://cdn.example.com/');
+    });
+
+    it('keeps an existing trailing slash', async () => {
+      const client = makeTtsClient('https://cdn.example.com/');
+      expect(await client.getTtsBaseUrl()).toBe('https://cdn.example.com/');
+    });
+
+    it('builds a URL with voice', async () => {
+      const client = makeTtsClient('https://cdn.example.com/');
+      expect(await client.buildAudioUrl('ça va', 'fr', 'mathieu')).toBe(
+        'https://cdn.example.com/tts/fr/mathieu/token/%C3%A7a%20va',
+      );
+    });
+
+    it('builds a URL without voice', async () => {
+      const client = makeTtsClient('https://cdn.example.com/');
+      expect(await client.buildAudioUrl('bonjour', 'fr')).toBe(
+        'https://cdn.example.com/tts/fr/token/bonjour',
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getGlobalPracticeSession / getSession
+  // -------------------------------------------------------------------------
+  describe('getGlobalPracticeSession', () => {
+    function makeSessionClient(status: number): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          ['/2017-06-30/sessions', { status, data: { challenges: [] } }],
+        ]),
+      );
+    }
+
+    it('returns the session', async () => {
+      const client = makeSessionClient(200);
+      expect(await client.getGlobalPracticeSession('fr', 'en')).toEqual({
+        challenges: [],
+      });
+      expect(postBody(client)).toEqual({
+        fromLanguage: 'en',
+        learningLanguage: 'fr',
+        challengeTypes: ['definition', 'translate'],
+        type: 'GLOBAL_PRACTICE',
+        juicy: true,
+        smartTipsVersion: 2,
+      });
+    });
+
+    it('returns null for other success statuses', async () => {
+      const client = makeSessionClient(204);
+      expect(await client.getGlobalPracticeSession('fr', 'en')).toBeNull();
+    });
+
+    it.each([401, 403])('throws DuolingoAuthError on %i', async (status) => {
+      const client = makeSessionClient(status);
+      await expect(client.getGlobalPracticeSession('fr', 'en')).rejects.toThrow(
+        DuolingoAuthError,
+      );
+    });
+
+    it('re-throws errors without a response', async () => {
+      const client = makeClientWithMockHttp(new Map());
+      await expect(client.getGlobalPracticeSession('fr', 'en')).rejects.toThrow(
+        'Network error',
+      );
+    });
+
+    it.each([
+      ['fr', 'en'],
+      ['en', 'de'],
+    ])(
+      'getSession requests %s from %s',
+      async (learningLanguage, fromLanguage) => {
+        const client = makeSessionClient(200);
+        await client.getSession('skill-1', learningLanguage);
+        expect(postBody(client)).toMatchObject({
+          fromLanguage,
+          learningLanguage,
+        });
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Voice URL dictionary
+  // -------------------------------------------------------------------------
+  describe('getVoiceUrlDictionary', () => {
+    const tts = (word: string): string =>
+      `https://d7mj4aqfscim2.cloudfront.net/tts/fr/mathieu/token/${word}`;
+
+    const mockSession = {
+      challenges: [
+        { prompt: 'Bonjour', tts: tts('bonjour') },
+        { prompt: 'bonjour', tts: tts('bonjour2') },
+        { prompt: 'merci' },
+        {
+          metadata: {
+            non_character_tts: { tokens: { Salut: tts('salut') } },
+          },
+          tokens: [
+            { value: 'chat', tts: tts('chat') },
+            [{ value: 'chien', tts: tts('chien') }, [null, 'text']],
+            { value: 'sans', tts: '' },
+            { value: 'nope' },
+          ],
+        },
+        { metadata: {} },
+      ],
+    };
+
+    function makeDictClient(
+      session: { status: number; data: unknown } = {
+        status: 200,
+        data: mockSession,
+      },
+    ): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/sessions', session],
+        ]),
+      );
+    }
+
+    it('collects the audio URLs of all words of a session', async () => {
+      const client = makeDictClient();
+      const dict = await client.getVoiceUrlDictionary('fr');
+      expect(
+        Object.fromEntries([...dict].map(([k, v]) => [k, [...v]])),
+      ).toEqual({
+        bonjour: [tts('bonjour'), tts('bonjour2')],
+        salut: [tts('salut')],
+        chat: [tts('chat')],
+        chien: [tts('chien')],
+      });
+    });
+
+    it('fetches the session only once', async () => {
+      const client = makeDictClient();
+      const first = await client.getVoiceUrlDictionary('fr');
+      const second = await client.getVoiceUrlDictionary('fr');
+      expect(second).toBe(first);
+      expect(httpMock(client).post).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds the words of a new session with populateVoiceUrlDictionary()', async () => {
+      const client = makeDictClient();
+      const dict = await client.getVoiceUrlDictionary('fr');
+      await client.populateVoiceUrlDictionary('fr');
+      expect(httpMock(client).post).toHaveBeenCalledTimes(2);
+      expect(await client.getVoiceUrlDictionary('fr')).toBe(dict);
+      expect(dict.get('bonjour')?.size).toBe(2);
+    });
+
+    it('returns an empty dictionary when the session is unavailable', async () => {
+      const client = makeDictClient({ status: 500, data: {} });
+      const dict = await client.getVoiceUrlDictionary('fr');
+      expect(dict.size).toBe(0);
     });
   });
 });
