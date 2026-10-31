@@ -1,0 +1,16 @@
+# Node.js
+node_modules/
+dist/
+
+# Environment variables (may contain secrets)
+.env
+.env.local
+
+# Python (legacy — kept for reference during migration)
+
+
+.venv/
+
+
+# Coverage
+coverage/
