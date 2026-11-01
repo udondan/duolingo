@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.1](https://github.com/udondan/duolingo/compare/v2.0.0...v2.0.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **deps:** override minimatch to patched version ([#67](https://github.com/udondan/duolingo/issues/67)) ([61cb396](https://github.com/udondan/duolingo/commit/61cb3964ae7d3160ba0f15f7039c5188ba6ee55e))
+
+
+### Dependencies
+
+* **deps:** update dependency @types/node to v26.6.6 ([#69](https://github.com/udondan/duolingo/issues/69)) ([cac6db1](https://github.com/udondan/duolingo/commit/cac6db18d9bceeb57d8ba6d58c8d489c92a687eb))
+* **deps:** update dependency axios to v1.21.0 ([#60](https://github.com/udondan/duolingo/issues/60)) ([1185546](https://github.com/udondan/duolingo/commit/118554643d9ee95d93ebca89b51654450addec24))
+* **deps:** update jdx/mise-action action to v5.2.4 ([#62](https://github.com/udondan/duolingo/issues/62)) ([9011b50](https://github.com/udondan/duolingo/commit/9011b50d9430d0119e794ac00e4b7bbaf1c6fc9d))
+* **deps:** update udondan/wait-for-turn action to v1.4.2 ([#59](https://github.com/udondan/duolingo/issues/59)) ([ba2adb0](https://github.com/udondan/duolingo/commit/ba2adb033ae44204c9cfa78a3f365ff1fb75be5e))
+* **deps:** update udondan/wait-for-turn action to v1.5.0 ([#63](https://github.com/udondan/duolingo/issues/63)) ([7cc2f82](https://github.com/udondan/duolingo/commit/7cc2f829afbbec00d5d59a1d0ce03cae99d34859))
+* **deps:** update udondan/wait-for-turn action to v1.6.0 ([#64](https://github.com/udondan/duolingo/issues/64)) ([94d055b](https://github.com/udondan/duolingo/commit/94d055bc060cb600fba68ce50d7a83ff4b1eb3ae))
+
 ## [2.0.0](https://github.com/udondan/duolingo/compare/v1.0.2...v2.0.0) (2026-10-29)
 
 
