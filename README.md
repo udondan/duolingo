@@ -1,0 +1,576 @@
+# @udondan/duolingo
+
+[![npm](https://img.shields.io/npm/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
+[![Docker](https://img.shields.io/docker/v/udondan/duolingo?sort=semver&label=docker)](https://hub.docker.com/r/udondan/duolingo)
+[![Node.js](https://img.shields.io/node/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
+[![CI](https://github.com/udondan/duolingo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/udondan/duolingo/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/udondan/duolingo/graph/badge.svg)](https://codecov.io/gh/udondan/duolingo)
+[![License](https://img.shields.io/github/license/udondan/duolingo)](LICENSE)
+
+A TypeScript package that provides a **Duolingo API client library**, a
+**command line interface** (`duolingo`) and an
+**[MCP](https://modelcontextprotocol.io) server** for LLM agents (e.g. Claude).
+
+Built natively in TypeScript against the unofficial Duolingo REST API — no third-party
+Duolingo library dependency.
+
+## Table of Contents
+
+- [Getting Your JWT Token](#getting-your-jwt-token)
+- [CLI](#cli)
+  - [Installation](#cli-installation)
+  - [Credentials](#credentials)
+  - [Commands](#commands)
+  - [With Docker](#with-docker)
+- [MCP Server](#mcp-server)
+  - [Installation](#mcp-installation)
+  - [Claude Desktop](#claude-desktop)
+  - [Claude Code](#claude-code)
+  - [Docker MCP Toolkit](#docker-mcp-toolkit)
+  - [Available Tools](#available-tools)
+- [Library](#library)
+  - [Installation](#library-installation)
+  - [Quick Start](#quick-start)
+  - [API Reference](#api-reference)
+- [Development](#development)
+
+---
+
+## Getting Your JWT Token
+
+The CLI, the MCP server and the library all require a Duolingo JWT token for authentication.
+
+1. Log in to [duolingo.com](https://www.duolingo.com) in your browser.
+2. Open the browser developer console (F12 → Console tab).
+3. Run:
+   ```js
+   document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)
+   ```
+4. Copy the output — that is your JWT token.
+
+> **Note**: JWT tokens expire. If you get authentication errors, repeat the steps above.
+
+---
+
+## CLI
+
+### CLI Installation
+
+```bash
+npm install -g @udondan/duolingo
+duolingo --help
+```
+
+Or run it without installing: `npx -y @udondan/duolingo --help`.
+
+The CLI and the MCP server are also available as the Docker image
+[`udondan/duolingo`](https://hub.docker.com/r/udondan/duolingo) (amd64 and
+arm64), no Node.js needed. See [With Docker](#with-docker).
+
+### Credentials
+
+The CLI reads `DUOLINGO_USERNAME` and `DUOLINGO_JWT` from the environment. You
+can also put them in `~/.config/duolingo/config`:
+
+```bash
+mkdir -p ~/.config/duolingo
+cat > ~/.config/duolingo/config <<'EOF'
+DUOLINGO_USERNAME=your_username
+DUOLINGO_JWT=your_jwt_token
+EOF
+chmod 0600 ~/.config/duolingo/config
+```
+
+The file is only read when no other user can access it (mode `0600`).
+Environment variables take precedence over the file.
+
+### Commands
+
+Output is JSON by default. Use `--format markdown` (or `-f markdown`) for the
+same readable text the MCP tools return.
+
+```bash
+duolingo streak
+duolingo --format markdown progress es
+duolingo known-words fr --username someone
+duolingo leaderboard --unit month
+```
+
+| Command | Description |
+|---------|-------------|
+| `user [-u name]` | Profile: name, bio, location, followers, languages |
+| `settings` | Account settings |
+| `streak [-u name]` | Current streak, daily goal and longest streak |
+| `xp` | XP earned and lessons completed today |
+| `languages [-u name] [-a]` | Languages being learned (`-a` for abbreviations) |
+| `courses [-u name]` | All courses, including Math, Chess and Music |
+| `friends` | Users the authenticated user follows |
+| `calendar [-u name]` | Recent activity of the current course |
+| `leaderboard [--unit week\|month]` | Friends ranked by XP |
+| `shop` | Shop items and prices |
+| `health` | Hearts and refill status |
+| `currencies` | Gem and lingot balances |
+| `streak-goal` | Current streak goal and checkpoints |
+| `language <name> [-u name]` | Level, points and streak of a language (e.g. `French`) |
+| `progress <abbr>` | Detailed progress in a language (e.g. `fr`) |
+| `known-topics <abbr> [-u name]` | Learned topics |
+| `unknown-topics <abbr> [-u name]` | Topics not learned yet |
+| `golden-topics <abbr> [-u name]` | Fully mastered topics |
+| `reviewable-topics <abbr> [-u name]` | Learned topics that need review |
+| `known-words <abbr> [-u name]` | Words learned |
+| `learned-skills <abbr> [-u name]` | Learned skills in learning order |
+| `voices [abbr]` | Text-to-speech voices |
+| `audio-url <word> [abbr] [--voice v] [--no-random]` | Pronunciation audio URL |
+| `language-name <abbr> [-u name]` | Full name of a language (`fr` → `French`) |
+| `abbreviation <name> [-u name]` | Abbreviation of a language (`French` → `fr`) |
+| `mcp` | Start the MCP server (stdio) |
+
+Errors go to stderr and the CLI exits with code 1.
+
+### With Docker
+
+Arguments after the image name are passed to the CLI. `-e NAME` without a
+value takes the variable from your shell:
+
+```bash
+docker run --rm -e DUOLINGO_USERNAME -e DUOLINGO_JWT udondan/duolingo streak
+```
+
+As an alias, the image behaves like an installed `duolingo`:
+
+```bash
+alias duolingo='docker run --rm -e DUOLINGO_USERNAME -e DUOLINGO_JWT udondan/duolingo'
+
+duolingo --format markdown progress es
+```
+
+The config file `~/.config/duolingo/config` is not visible inside the
+container, so pass the credentials as environment variables.
+
+---
+
+## MCP Server
+
+### MCP Installation
+
+**Option A — run directly with npx (no install needed):**
+
+```bash
+DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt npx -y @udondan/duolingo mcp
+```
+
+**Option B — install globally:**
+
+```bash
+npm install -g @udondan/duolingo
+DUOLINGO_USERNAME=your_username DUOLINGO_JWT=your_jwt duolingo mcp
+```
+
+**Option C — run the Docker image:**
+
+```bash
+docker run --rm -i -e DUOLINGO_USERNAME -e DUOLINGO_JWT udondan/duolingo
+```
+
+Without arguments, the image starts the MCP server. `-i` keeps stdin open,
+which the server uses to talk to the client.
+
+**Option D — clone and build from source:**
+
+```bash
+git clone https://github.com/udondan/duolingo.git
+cd duolingo
+npm install && npm run build
+node dist/cli.js mcp
+```
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "duolingo": {
+      "command": "npx",
+      "args": ["-y", "@udondan/duolingo", "mcp"],
+      "env": {
+        "DUOLINGO_USERNAME": "your_username",
+        "DUOLINGO_JWT": "your_jwt_token"
+      }
+    }
+  }
+}
+```
+
+With Docker instead of `npx`, the entry looks like this. `-e NAME` without a
+value passes the variable from `env` to the container:
+
+```json
+{
+  "mcpServers": {
+    "duolingo": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "DUOLINGO_USERNAME",
+        "-e",
+        "DUOLINGO_JWT",
+        "udondan/duolingo"
+      ],
+      "env": {
+        "DUOLINGO_USERNAME": "your_username",
+        "DUOLINGO_JWT": "your_jwt_token"
+      }
+    }
+  }
+}
+```
+
+### Claude Code
+
+```bash
+claude mcp add duolingo -- npx -y @udondan/duolingo mcp
+```
+
+Then set the environment variables before starting Claude Code:
+
+```bash
+export DUOLINGO_USERNAME="your_username"
+export DUOLINGO_JWT="your_jwt_token"
+```
+
+### Docker MCP Toolkit
+
+With the [Docker MCP Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/)
+of Docker Desktop, the server runs as a container behind the MCP Gateway. The
+gateway starts the container on demand and passes its tools on to the connected
+clients. The credentials are stored as secrets in Docker Desktop instead of in
+plain text in the client configuration.
+
+Requires Docker Desktop with the MCP Toolkit enabled.
+
+1. Download the server definition [`docker-mcp.yml`](docker-mcp.yml) and add it
+   to a Toolkit profile. The Toolkit only reads such files from its catalogs
+   directory:
+
+   ```bash
+   mkdir -p ~/.docker/mcp/catalogs
+   curl -fsSL https://raw.githubusercontent.com/udondan/duolingo/main/docker-mcp.yml -o ~/.docker/mcp/catalogs/duolingo.yml
+
+   # new profile "duolingo" ...
+   docker mcp profile create --name duolingo --id duolingo --server "file://$HOME/.docker/mcp/catalogs/duolingo.yml"
+   # ... or add it to an existing profile
+   docker mcp profile server add default --server "file://$HOME/.docker/mcp/catalogs/duolingo.yml"
+   ```
+
+   The profile keeps the image at the version it had when it was added. Run
+   `profile server add` again to update.
+
+2. Store the credentials as secrets (see [Getting Your JWT Token](#getting-your-jwt-token)):
+
+   ```bash
+   docker mcp secret set duolingo.username=your_username
+   docker mcp secret set duolingo.jwt=your_jwt_token
+   ```
+
+3. Connect a client to the profile:
+
+   ```bash
+   docker mcp client connect claude-desktop --profile duolingo
+   ```
+
+   `docker mcp client connect --help` lists more clients such as `claude-code`,
+   `cursor` or `vscode`. This also works in Docker Desktop under _MCP Toolkit_.
+
+`docker mcp gateway run --profile duolingo --dry-run --verbose` checks the setup
+without starting a client. The output should end with `duolingo: (N tools)`.
+
+### Available Tools
+
+All tools are **read-only** — the server never modifies your Duolingo account.
+
+#### Account
+
+| Tool | Description |
+|------|-------------|
+| `duolingo_get_user_info` | Profile: username, name, bio, location, avatar, followers, learning language |
+| `duolingo_get_settings` | Notification and account settings |
+| `duolingo_get_streak_info` | Current streak, longest streak, daily goal, extended today |
+| `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today |
+| `duolingo_get_languages` | Languages being learned (full names or abbreviations) |
+| `duolingo_get_courses` | All courses including Math, Chess, and Music with XP per course |
+| `duolingo_get_friends` | Users the authenticated user follows, with total XP |
+| `duolingo_get_calendar` | Recent activity calendar for the current course (~last 2 weeks) |
+| `duolingo_get_leaderboard` | Authenticated user's friends sorted by XP for week or month |
+| `duolingo_get_shop_items` | Full shop catalogue with prices and item types |
+| `duolingo_get_health` | Current hearts count, max hearts, refill timing |
+| `duolingo_get_currencies` | Gem and lingot balances |
+| `duolingo_get_streak_goal` | Current streak goal with upcoming checkpoints |
+
+#### Language
+
+| Tool | Description |
+|------|-------------|
+| `duolingo_get_language_details` | Level, points, streak for a specific language |
+| `duolingo_get_language_progress` | Detailed progress: level %, points to next level, fluency |
+| `duolingo_get_known_topics` | Learned topic/skill names |
+| `duolingo_get_unknown_topics` | Not-yet-learned topics |
+| `duolingo_get_golden_topics` | Fully mastered topics (strength = 1.0) |
+| `duolingo_get_reviewable_topics` | Learned but not fully mastered topics |
+| `duolingo_get_known_words` | Set of known words for a language |
+| `duolingo_get_learned_skills` | Full skill objects sorted by learning order |
+| `duolingo_get_language_voices` | Available TTS voice names for a language |
+| `duolingo_get_audio_url` | Pronunciation audio URL for a word |
+
+#### Utilities
+
+| Tool | Description |
+|------|-------------|
+| `duolingo_get_language_from_abbr` | Convert language abbreviation to full name (e.g. `fr` → `French`) |
+| `duolingo_get_abbreviation_of` | Convert full language name to abbreviation (e.g. `French` → `fr`) |
+
+---
+
+## Library
+
+### Library Installation
+
+```bash
+npm install @udondan/duolingo
+```
+
+### Quick Start
+
+```typescript
+import { DuolingoClient } from '@udondan/duolingo';
+
+const client = new DuolingoClient('your_username', 'your_jwt_token');
+
+// Get all courses including Math, Chess, and Music
+const userData = await client.getUserData();
+const userId = userData.id;
+const v2 = await client.getUserDataV2(userId);
+for (const course of v2.courses) {
+  console.log(`${course.subject}: ${course.xp} XP`);
+}
+
+// Get streak info
+const streak = v2.streak;
+const longestStreak = v2.streakData.longestStreak?.length;
+
+// Get friends
+const friends = await client.getFollowing(userId);
+for (const friend of friends) {
+  console.log(`${friend.username}: ${friend.totalXp} XP`);
+}
+
+// Get shop items
+const items = await client.getShopItems();
+const streakFreeze = items.find(i => i.id === 'streak_freeze');
+
+// Get hearts
+const health = await client.getHealth();
+console.log(`Hearts: ${health.hearts}/${health.maxHearts}`);
+```
+
+### API Reference
+
+#### `new DuolingoClient(username, jwt)`
+
+Creates a new client instance. Results are cached per instance.
+
+```typescript
+const client = new DuolingoClient('your_username', 'your_jwt_token');
+```
+
+#### User Data
+
+```typescript
+// Legacy API — returns language_data with skills, calendar, etc.
+// Required for: language details, topics, known words, learned skills
+const userData = await client.getUserData(username?);
+
+// 2023-05-23 API — returns all courses (language + math/chess/music),
+// richer streak data, subscriber level, gems, health
+const userId = userData.id;
+const v2 = await client.getUserDataV2(userId);
+
+// Resolve a username to a numeric user ID
+const id = await client.getUserIdByUsername('someuser');
+```
+
+#### Courses (all subjects)
+
+```typescript
+const v2 = await client.getUserDataV2(userId);
+
+// All courses
+v2.courses;  // DuolingoCourse[]
+
+// Filter by subject
+const langCourses  = v2.courses.filter(c => c.subject === 'language');
+const mathCourses  = v2.courses.filter(c => c.subject === 'math');
+const chessCourses = v2.courses.filter(c => c.subject === 'chess');
+const musicCourses = v2.courses.filter(c => c.subject === 'music');
+```
+
+Each course has: `id`, `subject`, `topic`, `xp`, `fromLanguage`.
+Language courses also have: `learningLanguage`, `title`, `authorId`.
+
+#### Daily XP Progress
+
+```typescript
+const progress = await client.getUserDataById(userId, ['xpGoal', 'xpGains', 'streakData']);
+// progress.xpGoal    — daily XP goal
+// progress.xpGains   — array of { xp, skillId, time } for recent lessons
+// progress.streakData.updatedTimestamp — last streak update
+```
+
+#### Friends & Social
+
+```typescript
+// People this user follows (= friends)
+const following = await client.getFollowing(userId);
+// following[0].username, .totalXp, .userScore?.score (weekly XP), .isFollowedBy
+
+// People who follow this user
+const followers = await client.getFollowers(userId);
+```
+
+#### Shop, Health & Currencies
+
+```typescript
+// Full shop catalogue (read-only)
+const items = await client.getShopItems();
+// items[0].id, .name, .type, .price, .currencyType, .lastUsedDate
+
+// Hearts / health (authenticated user only)
+const health = await client.getHealth();
+// health.hearts, .maxHearts, .eligibleForFreeRefill, .secondsUntilNextHeartSegment
+
+// Gem and lingot balances (authenticated user only)
+const { gems, lingots } = await client.getCurrencies();
+```
+
+#### Streak Goals
+
+```typescript
+// Current streak goal with checkpoints
+const goal = await client.getStreakGoalCurrent();
+// goal.hasActiveGoal, goal.streakGoal.lastCompleteGoal, .checkpoints, .nextSelectedGoal
+
+// Available next goal options
+const options = await client.getStreakGoalNextOptions();
+```
+
+#### TTS Audio
+
+```typescript
+// Discover available voices for a language
+const voices = await client.getLanguageVoices('es');  // ['beaes', 'juniores', ...]
+
+// Build an audio URL
+const url = await client.buildAudioUrl('hola', 'es');
+const urlWithVoice = await client.buildAudioUrl('hola', 'es', 'beaes');
+```
+
+#### Error Handling
+
+```typescript
+import {
+  DuolingoClient,
+  DuolingoAuthError,
+  DuolingoNotFoundError,
+  DuolingoCaptchaError,
+  DuolingoClientError,
+} from '@udondan/duolingo';
+
+try {
+  const data = await client.getUserData('someuser');
+} catch (err) {
+  if (err instanceof DuolingoAuthError) {
+    // JWT expired — extract a new one from the browser
+  } else if (err instanceof DuolingoNotFoundError) {
+    // User does not exist
+  } else if (err instanceof DuolingoCaptchaError) {
+    // Duolingo blocked the request — try again later
+  } else if (err instanceof DuolingoClientError) {
+    // Other API error
+  }
+}
+```
+
+---
+
+## Development
+
+```bash
+git clone https://github.com/udondan/duolingo.git
+cd duolingo
+npm install
+
+# Build
+npm run build
+
+# Run tests (unit + integration)
+npm test
+
+# Integration tests require credentials:
+export DUOLINGO_USERNAME="your_username"
+export DUOLINGO_JWT="your_jwt_token"
+npm test
+
+# Type-check without building
+npm run typecheck
+
+# Run MCP server in dev mode (no build step)
+npm run dev
+```
+
+### Project Structure
+
+```
+src/
+├── index.ts           # Library entry point — exports client, types, errors
+├── cli.ts             # `duolingo` binary
+├── mcp.ts             # MCP server (stdio transport), started by `duolingo mcp`
+├── version.ts         # Package version
+├── cli/
+│   ├── program.ts     # CLI commands (commander)
+│   └── config-file.ts # ~/.config/duolingo/config loader
+├── client/
+│   ├── duolingo.ts    # DuolingoClient — all API methods
+│   ├── types.ts       # TypeScript interfaces for all API responses
+│   └── errors.ts      # Custom error classes
+├── views/
+│   ├── account.ts     # Account queries: data + markdown
+│   ├── language.ts    # Language queries: data + markdown
+│   ├── utils.ts       # Language name/abbreviation lookups
+│   └── view.ts        # View type and rendering
+└── tools/
+    ├── account.ts     # Account tools
+    ├── language.ts    # Language tools
+    ├── shop.ts        # Utility tools
+    └── helpers.ts     # Shared utilities (error handling, Zod schemas)
+```
+
+### API Versions Used
+
+| Endpoint | API Version | Used For |
+|----------|-------------|----------|
+| `/users/<username>` | Legacy | User profile, language data, skills, calendar |
+| `/2023-05-23/users/{id}` | Current | Courses (all subjects), streak, health, gems |
+| `/2023-05-23/friends/users/{id}/following` | Current | Friends, leaderboard |
+| `/2023-05-23/shop-items` | Current | Shop catalogue |
+| `/users/{id}/streak-goal-current` | Current | Streak goals |
+| `/2017-06-30/sessions` | Current | TTS voice discovery |
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE)
