@@ -1,0 +1,10 @@
+.git/
+.github/
+.claude/
+.vibe/
+node_modules/
+dist/
+coverage/
+tests/
+.env
+.env.*

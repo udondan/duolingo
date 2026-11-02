@@ -1,0 +1,124 @@
+[settings]
+jobs = 1
+
+[tools]
+node = "lts"
+# Workflow linters for the CI actions job, which installs only these three.
+actionlint = "1.7.12"
+# The runner's own shellcheck is older and reports differently. actionlint runs it over every `run:` block.
+shellcheck = "0.11.0"
+zizmor = "1.31.1"
+# The `docker mcp` plugin for the Docker CI job. Docker Desktop ships its own.
+"github:docker/mcp-gateway" = "0.44.1"
+
+[env]
+# Load .env file if present (never commit this file)
+_.file = ".env"
+
+# ── Tasks ────────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "Install npm dependencies"
+run = "npm install"
+
+[tasks.build]
+description = "Compile TypeScript to dist/"
+run = "npm run build"
+depends = ["install"]
+
+[tasks.typecheck]
+description = "Type-check without emitting files"
+run = "npm run typecheck"
+depends = ["install"]
+
+[tasks.lint]
+description = "Run ESLint"
+run = "npm run lint"
+depends = ["install"]
+
+[tasks."lint:fix"]
+description = "Run ESLint and auto-fix violations"
+run = "npm run lint:fix"
+depends = ["install"]
+
+[tasks.format]
+description = "Format source files with Prettier"
+run = "npm run format"
+depends = ["install"]
+
+[tasks."format:check"]
+description = "Check formatting without writing files"
+run = "npm run format:check"
+depends = ["install"]
+
+[tasks.test]
+description = "Run unit and integration tests"
+run = "npm test"
+depends = ["install"]
+
+[tasks."test:watch"]
+description = "Run tests in watch mode"
+run = "npm run test:watch"
+depends = ["install"]
+
+[tasks."test:coverage"]
+description = "Run tests with coverage report"
+run = "npm run test:coverage"
+depends = ["install"]
+
+[tasks.dev]
+description = "Start MCP server in dev mode (no build step)"
+run = "npm run dev"
+depends = ["install"]
+
+[tasks.start]
+description = "Start the built MCP server"
+run = "npm start"
+depends = ["build"]
+
+[tasks.inspect]
+description = "List all MCP tools exposed by the server (reads credentials from .env)"
+run = "npx @modelcontextprotocol/inspector --cli --method tools/list -e DUOLINGO_USERNAME=$DUOLINGO_USERNAME -e DUOLINGO_JWT=$DUOLINGO_JWT node dist/cli.js mcp"
+depends = ["build"]
+
+[tasks."inspect:ui"]
+description = "Launch the MCP inspector browser UI (reads credentials from .env)"
+run = "npx @modelcontextprotocol/inspector -e DUOLINGO_USERNAME=$DUOLINGO_USERNAME -e DUOLINGO_JWT=$DUOLINGO_JWT node dist/cli.js mcp"
+depends = ["build"]
+
+
+# ── Docker tasks ─────────────────────────────────────────────────────────────
+
+[tasks.docker-build]
+description = "Build the Docker image"
+run = "docker build -t udondan/duolingo ."
+
+[tasks.docker-register]
+description = "Add the server to a Docker MCP Toolkit profile (created if missing)"
+usage = 'arg "[profile]" default="duolingo" help="Profile ID"'
+# docker mcp only reads server files from its catalogs directory.
+run = """
+catalogs="$HOME/.docker/mcp/catalogs"
+mkdir -p "$catalogs"
+cp docker-mcp.yml "$catalogs/duolingo.yml"
+server="file://$catalogs/duolingo.yml"
+if docker mcp profile show "$usage_profile" >/dev/null 2>&1; then
+  docker mcp profile server add "$usage_profile" --server "$server"
+else
+  docker mcp profile create --name "$usage_profile" --id "$usage_profile" --server "$server"
+fi
+"""
+
+[tasks.docker]
+description = "Build the image and add it to a Docker MCP Toolkit profile"
+depends = ["docker-build", "docker-register"]
+
+# ── Composite tasks ───────────────────────────────────────────────────────────
+
+[tasks.check]
+description = "Run all checks: typecheck + lint + format:check + test"
+depends = ["typecheck", "lint", "format:check", "test"]
+
+[tasks.ci]
+description = "Full CI pipeline: install → build → check"
+depends = ["build", "check"]
