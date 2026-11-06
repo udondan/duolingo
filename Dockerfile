@@ -1,14 +1,5 @@
-FROM node:26-alpine AS builder
-
-WORKDIR /build
-COPY package*.json ./
-RUN npm ci --ignore-scripts
-
-COPY tsconfig.json .
-COPY src/ src/
-RUN npm run build
-
-
+# Expects a compiled dist/ next to it: `mise run docker-build` builds it first.
+# TypeScript and the rest of the dev tooling stay out of the Docker build.
 FROM node:26-alpine
 
 LABEL com.docker.desktop.mcp="true"
@@ -18,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-COPY --from=builder /build/dist ./dist
+COPY dist/ dist/
 
 # npm and corepack aren't needed at runtime, and their bundled dependencies
 # show up in vulnerability scans. apk upgrade pulls fixes for Alpine packages

@@ -171,6 +171,9 @@ jobs:
           ln -s "$(mise which docker-mcp)" ~/.docker/cli-plugins/docker-mcp
           docker mcp version
 
+      # Strict install from the lock file before docker-build compiles dist/.
+      - run: mise exec -- npm ci
+
       - run: mise run docker-build
 
       - name: Run the CLI in the image

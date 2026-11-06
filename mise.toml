@@ -92,6 +92,8 @@ depends = ["build"]
 [tasks.docker-build]
 description = "Build the Docker image"
 run = "docker build -t udondan/duolingo ."
+# The image takes the compiled dist/, it doesn't compile TypeScript itself.
+depends = ["build"]
 
 [tasks.docker-register]
 description = "Add the server to a Docker MCP Toolkit profile (created if missing)"
