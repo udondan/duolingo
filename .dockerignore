@@ -3,7 +3,6 @@
 .claude/
 .vibe/
 node_modules/
-dist/
 coverage/
 tests/
 .env

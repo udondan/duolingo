@@ -54,7 +54,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: lts/*
+          node-version-file: .node-version
           cache: npm
 
       - name: Install dependencies
@@ -170,6 +170,9 @@ jobs:
           mkdir -p ~/.docker/cli-plugins
           ln -s "$(mise which docker-mcp)" ~/.docker/cli-plugins/docker-mcp
           docker mcp version
+
+      # Strict install from the lock file before docker-build compiles dist/.
+      - run: mise exec -- npm ci
 
       - run: mise run docker-build
 
