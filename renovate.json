@@ -1,4 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>udondan/renovate-config"]
+  "extends": ["github>udondan/renovate-config"],
+  "packageRules": [
+    {
+      "description": "Docker base image and .node-version move to a new Node major together, so tests run on the Node the image ships.",
+      "groupName": "node",
+      "matchDatasources": ["docker", "node-version"],
+      "matchPackageNames": ["node"]
+    }
+  ]
 }

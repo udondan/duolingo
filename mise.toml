@@ -1,8 +1,10 @@
 [settings]
 jobs = 1
+# Node comes from .node-version, shared with setup-node in the workflows and
+# kept on the same major as the Docker base image.
+idiomatic_version_file_enable_tools = ["node"]
 
 [tools]
-node = "lts"
 # Workflow linters for the CI actions job, which installs only these three.
 actionlint = "1.7.12"
 # The runner's own shellcheck is older and reports differently. actionlint runs it over every `run:` block.
