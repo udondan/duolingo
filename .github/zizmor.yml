@@ -5,7 +5,7 @@ rules:
   unpinned-uses:
     config:
       policies:
-        "actions/*": ref-pin
-        "github/*": ref-pin
-        "udondan/boarding-gate/*": ref-pin
-        "*": hash-pin
+        'actions/*': ref-pin
+        'github/*': ref-pin
+        'udondan/boarding-gate/*': ref-pin
+        '*': hash-pin
