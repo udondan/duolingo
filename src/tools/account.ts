@@ -9,20 +9,20 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  calendarView,
   coursesView,
   currenciesView,
-  dailyXpProgressView,
-  friendsView,
   healthView,
   languagesView,
-  leaderboardView,
-  settingsView,
   shopItemsView,
+} from '../views/account.js';
+import { settingsView, userInfoView } from '../views/profile.js';
+import {
+  calendarView,
+  dailyXpProgressView,
   streakGoalView,
   streakInfoView,
-  userInfoView,
-} from '../views/account.js';
+} from '../views/progress.js';
+import { friendsView, leaderboardView } from '../views/social.js';
 import {
   READ_ONLY,
   reply,

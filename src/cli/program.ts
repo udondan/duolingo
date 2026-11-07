@@ -14,20 +14,20 @@ import { startMcpServer } from '../mcp.js';
 import { handleError } from '../tools/helpers.js';
 import { version } from '../version.js';
 import {
-  calendarView,
   coursesView,
   currenciesView,
-  dailyXpProgressView,
-  friendsView,
   healthView,
   languagesView,
-  leaderboardView,
-  settingsView,
   shopItemsView,
+} from '../views/account.js';
+import { settingsView, userInfoView } from '../views/profile.js';
+import {
+  calendarView,
+  dailyXpProgressView,
   streakGoalView,
   streakInfoView,
-  userInfoView,
-} from '../views/account.js';
+} from '../views/progress.js';
+import { friendsView, leaderboardView } from '../views/social.js';
 import {
   audioUrlView,
   goldenTopicsView,

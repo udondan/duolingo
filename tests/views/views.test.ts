@@ -10,19 +10,19 @@ import { DuolingoNotFoundError } from '../../src/client/errors.js';
 import type { DuolingoSkill } from '../../src/client/types.js';
 import { handleError } from '../../src/tools/helpers.js';
 import {
-  calendarView,
   coursesView,
-  dailyXpProgressView,
-  friendsView,
   healthView,
   languagesView,
-  leaderboardView,
-  settingsView,
   shopItemsView,
+} from '../../src/views/account.js';
+import { settingsView, userInfoView } from '../../src/views/profile.js';
+import {
+  calendarView,
+  dailyXpProgressView,
   streakGoalView,
   streakInfoView,
-  userInfoView,
-} from '../../src/views/account.js';
+} from '../../src/views/progress.js';
+import { friendsView, leaderboardView } from '../../src/views/social.js';
 import {
   audioUrlView,
   computeDependencyOrder,
