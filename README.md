@@ -5,6 +5,7 @@
 [![Node.js](https://img.shields.io/node/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
 [![CI](https://github.com/udondan/duolingo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/udondan/duolingo/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/udondan/duolingo/graph/badge.svg)](https://codecov.io/gh/udondan/duolingo)
+[![Maintainability](https://qlty.sh/gh/udondan/projects/duolingo/maintainability.svg)](https://qlty.sh/gh/udondan/projects/duolingo)
 [![License](https://img.shields.io/github/license/udondan/duolingo)](LICENSE)
 
 A TypeScript package that provides a **Duolingo API client library**, a
@@ -44,7 +45,7 @@ The CLI, the MCP server and the library all require a Duolingo JWT token for aut
 2. Open the browser developer console (F12 → Console tab).
 3. Run:
    ```js
-   document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)
+   document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11);
    ```
 4. Copy the output — that is your JWT token.
 
@@ -96,34 +97,34 @@ duolingo known-words fr --username someone
 duolingo leaderboard --unit month
 ```
 
-| Command | Description |
-|---------|-------------|
-| `user [-u name]` | Profile: name, bio, location, followers, languages |
-| `settings` | Account settings |
-| `streak [-u name]` | Current streak, daily goal and longest streak |
-| `xp` | XP earned and lessons completed today |
-| `languages [-u name] [-a]` | Languages being learned (`-a` for abbreviations) |
-| `courses [-u name]` | All courses, including Math, Chess and Music |
-| `friends` | Users the authenticated user follows |
-| `calendar [-u name]` | Recent activity of the current course |
-| `leaderboard [--unit week\|month]` | Friends ranked by XP |
-| `shop` | Shop items and prices |
-| `health` | Hearts and refill status |
-| `currencies` | Gem and lingot balances |
-| `streak-goal` | Current streak goal and checkpoints |
-| `language <name> [-u name]` | Level, points and streak of a language (e.g. `French`) |
-| `progress <abbr>` | Detailed progress in a language (e.g. `fr`) |
-| `known-topics <abbr> [-u name]` | Learned topics |
-| `unknown-topics <abbr> [-u name]` | Topics not learned yet |
-| `golden-topics <abbr> [-u name]` | Fully mastered topics |
-| `reviewable-topics <abbr> [-u name]` | Learned topics that need review |
-| `known-words <abbr> [-u name]` | Words learned |
-| `learned-skills <abbr> [-u name]` | Learned skills in learning order |
-| `voices [abbr]` | Text-to-speech voices |
-| `audio-url <word> [abbr] [--voice v] [--no-random]` | Pronunciation audio URL |
-| `language-name <abbr> [-u name]` | Full name of a language (`fr` → `French`) |
-| `abbreviation <name> [-u name]` | Abbreviation of a language (`French` → `fr`) |
-| `mcp` | Start the MCP server (stdio) |
+| Command                                             | Description                                            |
+| --------------------------------------------------- | ------------------------------------------------------ |
+| `user [-u name]`                                    | Profile: name, bio, location, followers, languages     |
+| `settings`                                          | Account settings                                       |
+| `streak [-u name]`                                  | Current streak, daily goal and longest streak          |
+| `xp`                                                | XP earned and lessons completed today                  |
+| `languages [-u name] [-a]`                          | Languages being learned (`-a` for abbreviations)       |
+| `courses [-u name]`                                 | All courses, including Math, Chess and Music           |
+| `friends`                                           | Users the authenticated user follows                   |
+| `calendar [-u name]`                                | Recent activity of the current course                  |
+| `leaderboard [--unit week\|month]`                  | Friends ranked by XP                                   |
+| `shop`                                              | Shop items and prices                                  |
+| `health`                                            | Hearts and refill status                               |
+| `currencies`                                        | Gem and lingot balances                                |
+| `streak-goal`                                       | Current streak goal and checkpoints                    |
+| `language <name> [-u name]`                         | Level, points and streak of a language (e.g. `French`) |
+| `progress <abbr>`                                   | Detailed progress in a language (e.g. `fr`)            |
+| `known-topics <abbr> [-u name]`                     | Learned topics                                         |
+| `unknown-topics <abbr> [-u name]`                   | Topics not learned yet                                 |
+| `golden-topics <abbr> [-u name]`                    | Fully mastered topics                                  |
+| `reviewable-topics <abbr> [-u name]`                | Learned topics that need review                        |
+| `known-words <abbr> [-u name]`                      | Words learned                                          |
+| `learned-skills <abbr> [-u name]`                   | Learned skills in learning order                       |
+| `voices [abbr]`                                     | Text-to-speech voices                                  |
+| `audio-url <word> [abbr] [--voice v] [--no-random]` | Pronunciation audio URL                                |
+| `language-name <abbr> [-u name]`                    | Full name of a language (`fr` → `French`)              |
+| `abbreviation <name> [-u name]`                     | Abbreviation of a language (`French` → `fr`)           |
+| `mcp`                                               | Start the MCP server (stdio)                           |
 
 Errors go to stderr and the CLI exits with code 1.
 
@@ -295,43 +296,43 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 
 #### Account
 
-| Tool | Description |
-|------|-------------|
-| `duolingo_get_user_info` | Profile: username, name, bio, location, avatar, followers, learning language |
-| `duolingo_get_settings` | Notification and account settings |
-| `duolingo_get_streak_info` | Current streak, longest streak, daily goal, extended today |
-| `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today |
-| `duolingo_get_languages` | Languages being learned (full names or abbreviations) |
-| `duolingo_get_courses` | All courses including Math, Chess, and Music with XP per course |
-| `duolingo_get_friends` | Users the authenticated user follows, with total XP |
-| `duolingo_get_calendar` | Recent activity calendar for the current course (~last 2 weeks) |
-| `duolingo_get_leaderboard` | Authenticated user's friends sorted by XP for week or month |
-| `duolingo_get_shop_items` | Full shop catalogue with prices and item types |
-| `duolingo_get_health` | Current hearts count, max hearts, refill timing |
-| `duolingo_get_currencies` | Gem and lingot balances |
-| `duolingo_get_streak_goal` | Current streak goal with upcoming checkpoints |
+| Tool                             | Description                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `duolingo_get_user_info`         | Profile: username, name, bio, location, avatar, followers, learning language |
+| `duolingo_get_settings`          | Notification and account settings                                            |
+| `duolingo_get_streak_info`       | Current streak, longest streak, daily goal, extended today                   |
+| `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today                            |
+| `duolingo_get_languages`         | Languages being learned (full names or abbreviations)                        |
+| `duolingo_get_courses`           | All courses including Math, Chess, and Music with XP per course              |
+| `duolingo_get_friends`           | Users the authenticated user follows, with total XP                          |
+| `duolingo_get_calendar`          | Recent activity calendar for the current course (~last 2 weeks)              |
+| `duolingo_get_leaderboard`       | Authenticated user's friends sorted by XP for week or month                  |
+| `duolingo_get_shop_items`        | Full shop catalogue with prices and item types                               |
+| `duolingo_get_health`            | Current hearts count, max hearts, refill timing                              |
+| `duolingo_get_currencies`        | Gem and lingot balances                                                      |
+| `duolingo_get_streak_goal`       | Current streak goal with upcoming checkpoints                                |
 
 #### Language
 
-| Tool | Description |
-|------|-------------|
-| `duolingo_get_language_details` | Level, points, streak for a specific language |
+| Tool                             | Description                                               |
+| -------------------------------- | --------------------------------------------------------- |
+| `duolingo_get_language_details`  | Level, points, streak for a specific language             |
 | `duolingo_get_language_progress` | Detailed progress: level %, points to next level, fluency |
-| `duolingo_get_known_topics` | Learned topic/skill names |
-| `duolingo_get_unknown_topics` | Not-yet-learned topics |
-| `duolingo_get_golden_topics` | Fully mastered topics (strength = 1.0) |
-| `duolingo_get_reviewable_topics` | Learned but not fully mastered topics |
-| `duolingo_get_known_words` | Set of known words for a language |
-| `duolingo_get_learned_skills` | Full skill objects sorted by learning order |
-| `duolingo_get_language_voices` | Available TTS voice names for a language |
-| `duolingo_get_audio_url` | Pronunciation audio URL for a word |
+| `duolingo_get_known_topics`      | Learned topic/skill names                                 |
+| `duolingo_get_unknown_topics`    | Not-yet-learned topics                                    |
+| `duolingo_get_golden_topics`     | Fully mastered topics (strength = 1.0)                    |
+| `duolingo_get_reviewable_topics` | Learned but not fully mastered topics                     |
+| `duolingo_get_known_words`       | Set of known words for a language                         |
+| `duolingo_get_learned_skills`    | Full skill objects sorted by learning order               |
+| `duolingo_get_language_voices`   | Available TTS voice names for a language                  |
+| `duolingo_get_audio_url`         | Pronunciation audio URL for a word                        |
 
 #### Utilities
 
-| Tool | Description |
-|------|-------------|
+| Tool                              | Description                                                       |
+| --------------------------------- | ----------------------------------------------------------------- |
 | `duolingo_get_language_from_abbr` | Convert language abbreviation to full name (e.g. `fr` → `French`) |
-| `duolingo_get_abbreviation_of` | Convert full language name to abbreviation (e.g. `French` → `fr`) |
+| `duolingo_get_abbreviation_of`    | Convert full language name to abbreviation (e.g. `French` → `fr`) |
 
 ---
 
@@ -370,7 +371,7 @@ for (const friend of friends) {
 
 // Get shop items
 const items = await client.getShopItems();
-const streakFreeze = items.find(i => i.id === 'streak_freeze');
+const streakFreeze = items.find((i) => i.id === 'streak_freeze');
 
 // Get hearts
 const health = await client.getHealth();
@@ -409,13 +410,13 @@ const id = await client.getUserIdByUsername('someuser');
 const v2 = await client.getUserDataV2(userId);
 
 // All courses
-v2.courses;  // DuolingoCourse[]
+v2.courses; // DuolingoCourse[]
 
 // Filter by subject
-const langCourses  = v2.courses.filter(c => c.subject === 'language');
-const mathCourses  = v2.courses.filter(c => c.subject === 'math');
-const chessCourses = v2.courses.filter(c => c.subject === 'chess');
-const musicCourses = v2.courses.filter(c => c.subject === 'music');
+const langCourses = v2.courses.filter((c) => c.subject === 'language');
+const mathCourses = v2.courses.filter((c) => c.subject === 'math');
+const chessCourses = v2.courses.filter((c) => c.subject === 'chess');
+const musicCourses = v2.courses.filter((c) => c.subject === 'music');
 ```
 
 Each course has: `id`, `subject`, `topic`, `xp`, `fromLanguage`.
@@ -424,7 +425,11 @@ Language courses also have: `learningLanguage`, `title`, `authorId`.
 #### Daily XP Progress
 
 ```typescript
-const progress = await client.getUserDataById(userId, ['xpGoal', 'xpGains', 'streakData']);
+const progress = await client.getUserDataById(userId, [
+  'xpGoal',
+  'xpGains',
+  'streakData',
+]);
 // progress.xpGoal    — daily XP goal
 // progress.xpGains   — array of { xp, skillId, time } for recent lessons
 // progress.streakData.updatedTimestamp — last streak update
@@ -471,7 +476,7 @@ const options = await client.getStreakGoalNextOptions();
 
 ```typescript
 // Discover available voices for a language
-const voices = await client.getLanguageVoices('es');  // ['beaes', 'juniores', ...]
+const voices = await client.getLanguageVoices('es'); // ['beaes', 'juniores', ...]
 
 // Build an audio URL
 const url = await client.buildAudioUrl('hola', 'es');
@@ -560,14 +565,14 @@ src/
 
 ### API Versions Used
 
-| Endpoint | API Version | Used For |
-|----------|-------------|----------|
-| `/users/<username>` | Legacy | User profile, language data, skills, calendar |
-| `/2023-05-23/users/{id}` | Current | Courses (all subjects), streak, health, gems |
-| `/2023-05-23/friends/users/{id}/following` | Current | Friends, leaderboard |
-| `/2023-05-23/shop-items` | Current | Shop catalogue |
-| `/users/{id}/streak-goal-current` | Current | Streak goals |
-| `/2017-06-30/sessions` | Current | TTS voice discovery |
+| Endpoint                                   | API Version | Used For                                      |
+| ------------------------------------------ | ----------- | --------------------------------------------- |
+| `/users/<username>`                        | Legacy      | User profile, language data, skills, calendar |
+| `/2023-05-23/users/{id}`                   | Current     | Courses (all subjects), streak, health, gems  |
+| `/2023-05-23/friends/users/{id}/following` | Current     | Friends, leaderboard                          |
+| `/2023-05-23/shop-items`                   | Current     | Shop catalogue                                |
+| `/users/{id}/streak-goal-current`          | Current     | Streak goals                                  |
+| `/2017-06-30/sessions`                     | Current     | TTS voice discovery                           |
 
 ---
 

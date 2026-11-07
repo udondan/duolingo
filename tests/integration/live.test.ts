@@ -7,7 +7,7 @@
  *
  * Run with: npm test (all tests) or vitest run tests/integration
  *
- * NOTE: These tests are read-only. They never purchase items or mutate state.
+ * These tests are read-only: they never purchase items or mutate state.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';

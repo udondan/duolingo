@@ -8,10 +8,17 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import {
   DuolingoAuthError,
-  DuolingoCaptchaError,
-  DuolingoClientError,
   DuolingoNotFoundError,
+  httpStatus,
+  JWT_HINT,
+  toRequestError,
 } from './errors.js';
+import {
+  addSessionToVoiceUrlDict,
+  collectSessionVoices,
+  normalizeTtsBaseUrl,
+  type VoiceUrlDictionary,
+} from './tts.js';
 import type {
   DuolingoUserData,
   DuolingoDailyProgress,
@@ -34,12 +41,6 @@ const USER_AGENT =
 
 const BASE_URL = 'https://www.duolingo.com';
 
-/**
- * Fallback TTS CDN base URL used when the user data does not provide one.
- * The actual URL is returned in the /users/<username> response as `tts_base_url`.
- */
-const FALLBACK_TTS_BASE_URL = 'https://d7mj4aqfscim2.cloudfront.net/';
-
 export class DuolingoClient {
   private readonly http: AxiosInstance;
   private readonly username: string;
@@ -58,7 +59,7 @@ export class DuolingoClient {
   private voiceCache = new Map<string, Set<string>>();
 
   /** Voice URL dictionary: lang → word → Set<url> */
-  private voiceUrlDict = new Map<string, Map<string, Set<string>>>();
+  private voiceUrlDict = new Map<string, VoiceUrlDictionary>();
 
   constructor(username: string, jwt: string) {
     this.username = username;
@@ -171,20 +172,7 @@ export class DuolingoClient {
   async getUserDataV2(
     userIdOrUsername: number | string,
   ): Promise<DuolingoUserDataV2> {
-    // Resolve username to ID if needed
-    let userId: number;
-    if (typeof userIdOrUsername === 'string') {
-      // Check if it looks like a number
-      const parsed = parseInt(userIdOrUsername, 10);
-      if (!isNaN(parsed) && String(parsed) === userIdOrUsername) {
-        userId = parsed;
-      } else {
-        userId = await this.getUserIdByUsername(userIdOrUsername);
-      }
-    } else {
-      userId = userIdOrUsername;
-    }
-
+    const userId = await this.toUserId(userIdOrUsername);
     const cached = this.userDataV2Cache.get(userId);
     if (cached) return cached;
 
@@ -265,6 +253,17 @@ export class DuolingoClient {
   }
 
   /**
+   * A numeric user ID as is. A string is a user ID when it is all digits,
+   * otherwise a username to look up.
+   */
+  private async toUserId(userIdOrUsername: number | string): Promise<number> {
+    if (typeof userIdOrUsername === 'number') return userIdOrUsername;
+    const parsed = parseInt(userIdOrUsername, 10);
+    if (!isNaN(parsed) && String(parsed) === userIdOrUsername) return parsed;
+    return this.getUserIdByUsername(userIdOrUsername);
+  }
+
+  /**
    * Get the numeric user ID of the authenticated user.
    * Cached via getUserData().
    */
@@ -279,7 +278,7 @@ export class DuolingoClient {
    */
   async getTtsBaseUrl(): Promise<string> {
     const userData = await this.getUserData();
-    return this.normalizeTtsBaseUrl(userData.tts_base_url);
+    return normalizeTtsBaseUrl(userData.tts_base_url);
   }
 
   /**
@@ -303,20 +302,7 @@ export class DuolingoClient {
       await this.getFromLanguage(langAbbr),
     );
 
-    const voices = new Set<string>();
-    if (session) {
-      // Extract voice names from TTS URLs in challenges
-      for (const challenge of session.challenges) {
-        const voiceName = this.extractVoiceFromTtsUrl(challenge.tts);
-        if (voiceName) voices.add(voiceName);
-      }
-      // Also extract from ttsAnnotations keys
-      for (const url of Object.keys(session.ttsAnnotations ?? {})) {
-        const voiceName = this.extractVoiceFromTtsUrl(url);
-        if (voiceName) voices.add(voiceName);
-      }
-    }
-
+    const voices = session ? collectSessionVoices(session) : new Set<string>();
     this.voiceCache.set(langAbbr, voices);
     return [...voices];
   }
@@ -363,18 +349,16 @@ export class DuolingoClient {
     try {
       resp = await this.http.post<DuolingoSessionResponse>(url, data);
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response) {
-        const status = err.response.status;
-        // Surface auth errors so callers know credentials are invalid
-        if (status === 401 || status === 403) {
-          throw new DuolingoAuthError(
-            'Authentication failed while starting a practice session.',
-          );
-        }
-        // Other HTTP errors (e.g. 404, 500) are non-fatal for voice discovery
-        return null;
+      const status = httpStatus(err);
+      if (status === undefined) throw err;
+      // Surface auth errors so callers know credentials are invalid
+      if (status === 401 || status === 403) {
+        throw new DuolingoAuthError(
+          'Authentication failed while starting a practice session.',
+        );
       }
-      throw err;
+      // Other HTTP errors (e.g. 404, 500) are non-fatal for voice discovery
+      return null;
     }
 
     if (resp.status !== 200) return null;
@@ -411,9 +395,7 @@ export class DuolingoClient {
   /**
    * Get the voice URL dictionary for a language, populating it if needed.
    */
-  async getVoiceUrlDictionary(
-    langAbbr: string,
-  ): Promise<Map<string, Set<string>>> {
+  async getVoiceUrlDictionary(langAbbr: string): Promise<VoiceUrlDictionary> {
     return (
       this.voiceUrlDict.get(langAbbr) ??
       (await this.loadVoiceUrlDictionary(langAbbr))
@@ -426,10 +408,10 @@ export class DuolingoClient {
    */
   private async loadVoiceUrlDictionary(
     langAbbr: string,
-  ): Promise<Map<string, Set<string>>> {
+  ): Promise<VoiceUrlDictionary> {
     let langDict = this.voiceUrlDict.get(langAbbr);
     if (langDict === undefined) {
-      langDict = new Map<string, Set<string>>();
+      langDict = new Map();
       this.voiceUrlDict.set(langAbbr, langDict);
     }
 
@@ -437,23 +419,7 @@ export class DuolingoClient {
       langAbbr,
       await this.getFromLanguage(langAbbr),
     );
-    if (!session) return langDict;
-
-    for (const challenge of session.challenges) {
-      if (challenge.prompt && challenge.tts) {
-        this.addToVoiceUrlDict(langDict, challenge.prompt, challenge.tts);
-      }
-      if (challenge.metadata?.non_character_tts?.tokens) {
-        for (const [word, url] of Object.entries(
-          challenge.metadata.non_character_tts.tokens,
-        )) {
-          this.addToVoiceUrlDict(langDict, word, url);
-        }
-      }
-      if (challenge.tokens) {
-        this.addTokenListToVoiceUrlDict(langDict, challenge.tokens);
-      }
-    }
+    if (session) addSessionToVoiceUrlDict(langDict, session);
     return langDict;
   }
 
@@ -471,98 +437,13 @@ export class DuolingoClient {
     return langData && langAbbr === 'en' ? 'de' : 'en';
   }
 
-  /**
-   * Extract the voice name from a Duolingo TTS CDN URL.
-   * Supports two URL formats:
-   *   Legacy: https://<cdn>/<voice>/<hash>
-   *   Modern: https://<cdn>/tts/<lang>/<voice>/token/<word>
-   */
-  private extractVoiceFromTtsUrl(url?: string): string | null {
-    if (!url) return null;
-    // Modern format: .../tts/<lang>/<voice>/token/<word>
-    const modern = /cloudfront\.net\/tts\/[^/]+\/([^/]+)\/token\//.exec(
-      url,
-    )?.[1];
-    if (modern !== undefined) return modern;
-    // Legacy format: .../<voice>/<hash> — only applies to non-/tts/ URLs
-    if (url.includes('/tts/')) return null;
-    const legacy = /cloudfront\.net\/([^/]+)\/[^/]+$/.exec(url);
-    return legacy?.[1] ?? null;
-  }
-
-  /**
-   * Normalize a TTS base URL to always end with a slash and use HTTPS.
-   */
-  private normalizeTtsBaseUrl(raw?: string): string {
-    if (!raw) return FALLBACK_TTS_BASE_URL;
-    const url = raw.replace(/^http:\/\//, 'https://');
-    return url.endsWith('/') ? url : `${url}/`;
-  }
-
-  private addToVoiceUrlDict(
-    dict: Map<string, Set<string>>,
-    word: string,
-    url: string,
-  ): void {
-    const key = word.toLowerCase();
-    const existing = dict.get(key);
-    if (existing !== undefined) {
-      existing.add(url);
-    } else {
-      dict.set(key, new Set([url]));
-    }
-  }
-
-  private addTokenListToVoiceUrlDict(
-    dict: Map<string, Set<string>>,
-    tokens: unknown[],
-  ): void {
-    for (const token of tokens) {
-      if (Array.isArray(token)) {
-        this.addTokenListToVoiceUrlDict(dict, token);
-      } else if (
-        token !== null &&
-        typeof token === 'object' &&
-        'tts' in token &&
-        'value' in token
-      ) {
-        const t = token as { tts?: string; value?: string };
-        if (t.tts && t.value) {
-          this.addToVoiceUrlDict(dict, t.value, t.tts);
-        }
-      }
-    }
-  }
-
   private async makeRequest<T>(url: string): Promise<T> {
-    let resp: AxiosResponse<T>;
     try {
-      resp = await this.http.get<T>(url);
+      const resp = await this.http.get<T>(url);
+      return resp.data;
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response) {
-        const status = err.response.status;
-        const body = err.response.data as Record<string, unknown>;
-
-        if (status === 403 && body.blockScript != null) {
-          throw new DuolingoCaptchaError();
-        }
-        if (status === 401 || status === 403) {
-          throw new DuolingoAuthError(
-            'Authentication failed. Your JWT token may have expired. ' +
-              'Extract a new one from your browser: ' +
-              "document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)",
-          );
-        }
-        if (status === 404) {
-          throw new DuolingoNotFoundError(`Resource not found: ${url}`);
-        }
-        throw new DuolingoClientError(
-          `Duolingo API error ${status}: ${JSON.stringify(body)}`,
-        );
-      }
-      throw err;
+      throw toRequestError(err, url);
     }
-    return resp.data;
   }
 }
 
@@ -591,8 +472,7 @@ export function getClient(): DuolingoClient {
   if (!jwt) {
     throw new DuolingoAuthError(
       'DUOLINGO_JWT environment variable is not set. ' +
-        'Extract your JWT token from the browser console: ' +
-        "document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)",
+        `Extract your JWT token from the browser console: ${JWT_HINT}`,
     );
   }
 

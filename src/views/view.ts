@@ -43,6 +43,29 @@ export function renderView(view: View, format: ResponseFormat): string {
   return format === 'json' ? toJson(view.data) : view.markdown();
 }
 
+/** Turn a snake_case key into a heading, e.g. `notify_comment` → `Notify Comment`. */
+export function titleCase(key: string): string {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** The string itself, or `undefined` when it is missing or empty. */
+export function nonEmpty(value: string | null | undefined): string | undefined {
+  return value === null || value === undefined || value === ''
+    ? undefined
+    : value;
+}
+
+/**
+ * A markdown list item `- **Label**: value` as a one-element array, ready to
+ * spread into a list of lines. Only numbers and non-empty strings are shown,
+ * anything else gives an empty array.
+ */
+export function bullet(label: string, value: unknown): string[] {
+  if (typeof value === 'number' || (typeof value === 'string' && value !== ''))
+    return [`- **${label}**: ${value}`];
+  return [];
+}
+
 /**
  * Resolve the numeric user ID: the authenticated user when no username is
  * given, otherwise the given user.
