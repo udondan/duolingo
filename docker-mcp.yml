@@ -3,8 +3,8 @@
 name: duolingo
 type: server
 image: udondan/duolingo:latest
-title: Duolingo
-description: Duolingo profile, streak, courses, XP progress, friends, shop and more via the unofficial Duolingo API
+title: duolingo (unofficial)
+description: Unofficial MCP server for Duolingo profile, streak, courses, XP progress, friends, shop and more via the non-public Duolingo API
 secrets:
   - name: duolingo.username
     env: DUOLINGO_USERNAME
