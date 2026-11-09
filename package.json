@@ -1,7 +1,7 @@
 {
   "name": "@udondan/duolingo",
   "version": "2.0.0",
-  "description": "SDK, CLI and MCP server for Duolingo",
+  "description": "Unofficial SDK, CLI and MCP server for Duolingo",
   "author": {
     "name": "Daniel Schroeder",
     "url": "https://www.udondan.com/"
