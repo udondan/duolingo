@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.1](https://github.com/udondan/duolingo/compare/v2.0.0...v2.0.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **deps:** override minimatch to patched version ([#67](https://github.com/udondan/duolingo/issues/67)) ([61cb396](https://github.com/udondan/duolingo/commit/61cb3964ae7d3160ba0f15f7039c5188ba6ee55e))
+
+
+### Dependencies
+
+* **deps:** lock file maintenance ([#71](https://github.com/udondan/duolingo/issues/71)) ([12e6475](https://github.com/udondan/duolingo/commit/12e6475283bda0047ca6d24179a13afd042807a9))
+* **deps:** update dependency axios to v1.21.0 ([#60](https://github.com/udondan/duolingo/issues/60)) ([1185546](https://github.com/udondan/duolingo/commit/118554643d9ee95d93ebca89b51654450addec24))
+
 ## [2.0.0](https://github.com/udondan/duolingo/compare/v1.0.2...v2.0.0) (2026-10-29)
 
 
