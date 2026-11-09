@@ -8,7 +8,10 @@
 [![Maintainability](https://qlty.sh/gh/udondan/projects/duolingo/maintainability.svg)](https://qlty.sh/gh/udondan/projects/duolingo)
 [![License](https://img.shields.io/github/license/udondan/duolingo)](LICENSE)
 
-A TypeScript package that provides a **Duolingo API client library**, a
+> [!NOTE]
+> Unofficial community project. Not affiliated with, endorsed or authorized by Duolingo.
+
+A TypeScript package that provides a **client library** for the Duolingo API, a
 **command line interface** (`duolingo`) and an
 **[MCP](https://modelcontextprotocol.io) server** for LLM agents (e.g. Claude).
 
@@ -34,6 +37,7 @@ Duolingo library dependency.
   - [Quick Start](#quick-start)
   - [API Reference](#api-reference)
 - [Development](#development)
+- [Disclaimer](#disclaimer)
 
 ---
 
@@ -579,3 +583,11 @@ src/
 ## License
 
 MIT — see [LICENSE](LICENSE)
+
+## Disclaimer
+
+This is an unofficial, independent open-source project and is not affiliated
+with Duolingo, Inc. Duolingo is a trademark of Duolingo, Inc. The name is used
+only to describe compatibility. The API used is not public and may change at any
+time. Use at your own risk and in accordance with the Duolingo Terms and
+Conditions.
