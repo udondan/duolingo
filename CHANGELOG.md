@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.2](https://github.com/udondan/duolingo/compare/v2.0.1...v2.0.2) (2026-11-12)
+
+
+### Dependencies
+
+* **deps:** update dependency axios to v1.21.1 ([#92](https://github.com/udondan/duolingo/issues/92)) ([90a7e6f](https://github.com/udondan/duolingo/commit/90a7e6f018ae260209e70cffa7894888f80fe28f))
+* **deps:** update dependency commander to v15.1.0 ([#90](https://github.com/udondan/duolingo/issues/90)) ([f397b90](https://github.com/udondan/duolingo/commit/f397b90ae509a6820da0f1017aed63e692ed5dab))
+
 ## [2.0.1](https://github.com/udondan/duolingo/compare/v2.0.0...v2.0.1) (2026-11-09)
 
 
