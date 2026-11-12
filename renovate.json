@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>udondan/renovate-config"],
+  "packageRules": [
+    {
+      "description": "Docker base image and .node-version move to a new Node major together, so tests run on the Node the image ships.",
+      "groupName": "node",
+      "matchDatasources": ["docker", "node-version"],
+      "matchPackageNames": ["node"]
+    },
+    {
+      "description": "The final stage base image ships in the Docker image.",
+      "matchManagers": ["dockerfile"],
+      "matchDepTypes": ["final"],
+      "semanticCommitType": "build"
+    }
+  ],
+  "lockFileMaintenance": {
+    "description": "The Docker image installs the locked dependencies, so lock file maintenance ships to users.",
+    "semanticCommitType": "build"
+  }
+}

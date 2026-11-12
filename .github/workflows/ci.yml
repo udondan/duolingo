@@ -1,0 +1,238 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  # Codecov compares pull requests against the coverage of main.
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  # All runs share one live Duolingo account. Many parallel runs, for
+  # example of several Renovate PRs, would send bursts of requests that look
+  # suspicious, so only one run at a time may run the integration tests,
+  # including the runs on main.
+  boarding-gate:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      actions: read
+      contents: write # lock refs under refs/boarding-gate/
+      pull-requests: read # labels for label-weights
+      statuses: write # queue position as commit status
+    # Queue order, the concurrency group that cancels outdated waiting runs and
+    # the rebase of branches that are behind main: see
+    # https://github.com/udondan/boarding-gate#reusable-workflow
+    # The rebase needs OVERRIDE_TOKEN: pushes with github.token don't start new runs.
+    uses: udondan/boarding-gate/.github/workflows/boarding-gate.yml@v1
+    secrets:
+      update-token: ${{ secrets.OVERRIDE_TOKEN }}
+
+  ci:
+    name: Lint, typecheck & test
+    needs: boarding-gate
+    # Pull requests from forks can't take the turn and skip the wait, as they
+    # don't get the secrets. Fail if the wait failed or was cancelled.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Codecov upload via OIDC
+
+    steps:
+      - name: Check turn
+        if: needs.boarding-gate.result == 'failure' || needs.boarding-gate.result == 'cancelled'
+        run: exit 1
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test:coverage
+        env:
+          DUOLINGO_USERNAME: ${{ secrets.DUOLINGO_USERNAME }}
+          DUOLINGO_JWT: ${{ secrets.DUOLINGO_JWT }}
+          DUOLINGO_TEST_USERNAME: ${{ secrets.DUOLINGO_TEST_USERNAME }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          use_oidc: true
+          fail_ci_if_error: false
+          files: coverage/lcov.info
+
+      - name: Package dry-run
+        run: npm pack --dry-run
+
+  actions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          install_args: actionlint shellcheck zizmor
+
+      # Also runs shellcheck over every `run:` block.
+      - name: actionlint
+        run: actionlint
+
+      - name: zizmor
+        run: zizmor .
+        env:
+          GH_TOKEN: ${{ github.token }} # zizmor checks the actions online
+
+  # Codecov reports its result as the check runs codecov/project and
+  # codecov/patch. This job waits for them, so a coverage drop fails the
+  # required job. It is skipped along with the tests and passes with a warning
+  # if Codecov doesn't report in time.
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: [ci]
+    if: github.event_name == 'pull_request' && needs.ci.result == 'success'
+    timeout-minutes: 10
+    permissions:
+      checks: read
+    steps:
+      - name: Wait for Codecov
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          for _ in $(seq 30); do
+            checks=$(gh api --paginate --slurp "repos/$REPO/commits/$SHA/check-runs?per_page=100" | jq -c '
+              [.[].check_runs[] | select(.app.slug == "codecov" and (.name == "codecov/project" or .name == "codecov/patch"))]
+              | group_by(.name) | map(max_by(.id))')
+            if [[ $(jq '[.[] | select(.status == "completed")] | length' <<<"$checks") == 2 ]]; then
+              jq -r '.[] | "\(.name): \(.conclusion) (\(.output.title))"' <<<"$checks"
+              failed=$(jq -r '.[] | select(.conclusion != "success" and .conclusion != "neutral") | .name' <<<"$checks")
+              if [[ -n "$failed" ]]; then
+                echo "::error::Coverage check failed: ${failed//$'\n'/, }. Details are linked in the checks of this pull request."
+                exit 1
+              fi
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::Codecov didn't report within 5 minutes, coverage is not checked."
+
+  # Builds the image and runs it the way the Docker MCP Toolkit does, through
+  # a profile and the gateway. Needs no Duolingo credentials: the tools are
+  # registered without calling the API.
+  docker:
+    name: Docker
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          install_args: github:docker/mcp-gateway
+
+      - name: Install docker mcp plugin
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          ln -s "$(mise which docker-mcp)" ~/.docker/cli-plugins/docker-mcp
+          docker mcp version
+
+      # Strict install from the lock file before docker-build compiles dist/.
+      - run: mise exec -- npm ci
+
+      - run: mise run docker-build
+
+      - name: Run the CLI in the image
+        run: |
+          docker run --rm udondan/duolingo --version
+          docker run --rm udondan/duolingo --help
+
+      - run: mise run docker-register ci
+
+      # The gateway only verifies signatures of images under mcp/, and finds
+      # the locally built image without pulling it.
+      - name: List tools through the gateway
+        run: |
+          docker mcp gateway run --profile ci --dry-run --verbose 2>&1 | tee gateway.log
+          grep -E "duolingo: \([1-9][0-9]* tools\)" gateway.log
+
+  # Code smells (complexity, duplication, nesting) via Qlty. Git-aware: only
+  # smells introduced by the PR compared to main fail the job.
+  qlty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install qlty
+        uses: qltysh/qlty-action/install@ebcd284bf32e36a030afe15f1e136c7be08b9506 # v2.5.0
+
+      - name: Lint via qlty plugins
+        run: qlty check --all
+
+      - name: Report code smells
+        if: github.event_name != 'pull_request'
+        run: qlty smells --all --no-snippets
+
+      - name: Report new code smells
+        if: github.event_name == 'pull_request'
+        run: qlty smells --upstream origin/main --no-snippets
+
+      - name: Fail on new code smells
+        if: github.event_name == 'pull_request'
+        run: |
+          count=$(qlty smells --upstream origin/main --json --quiet 2>/dev/null | jq length)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::qlty found $count new code smell(s) compared to main"
+            exit 1
+          fi
+
+  # The only test check the ruleset requires, whatever jobs are added later.
+  required:
+    needs: [boarding-gate, ci, coverage, actions, docker, qlty]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check result
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
