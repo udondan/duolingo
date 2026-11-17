@@ -51,7 +51,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js mcp",
-    "dev": "tsx src/cli.ts mcp",
+    "dev": "bun src/cli.ts mcp",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -75,7 +75,6 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.7",
     "prettier": "3.10.1",
-    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.2",
     "vitest": "5.1.0"

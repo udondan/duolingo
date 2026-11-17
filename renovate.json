@@ -3,10 +3,15 @@
   "extends": ["github>udondan/renovate-config"],
   "packageRules": [
     {
-      "description": "Docker base image and .node-version move to a new Node major together, so tests run on the Node the image ships.",
+      "description": "Docker base image and the Node version in mise.toml move to a new Node major together, so tests run on the Node the image ships.",
       "groupName": "node",
       "matchDatasources": ["docker", "node-version"],
       "matchPackageNames": ["node"]
+    },
+    {
+      "description": "Bun in mise.toml and the Bun image that installs the dependencies in the Dockerfile move together.",
+      "groupName": "bun",
+      "matchPackageNames": ["oven-sh/bun", "bun", "oven/bun"]
     },
     {
       "description": "The final stage base image ships in the Docker image.",
