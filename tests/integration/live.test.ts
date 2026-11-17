@@ -5,7 +5,7 @@
  * They test the actual API responses to catch regressions when the Duolingo
  * API changes its response shape.
  *
- * Run with: npm test (all tests) or vitest run tests/integration
+ * Run with: bun run test (all tests) or vitest run tests/integration
  *
  * These tests are read-only: they never purchase items or mutate state.
  */

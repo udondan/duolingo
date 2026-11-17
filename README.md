@@ -185,7 +185,7 @@ which the server uses to talk to the client.
 ```bash
 git clone https://github.com/udondan/duolingo.git
 cd duolingo
-npm install && npm run build
+bun install && bun run build
 node dist/cli.js mcp
 ```
 
@@ -520,24 +520,25 @@ try {
 ```bash
 git clone https://github.com/udondan/duolingo.git
 cd duolingo
-npm install
+mise install   # Node.js and Bun, versions from mise.toml
+bun install
 
 # Build
-npm run build
+bun run build
 
 # Run tests (unit + integration)
-npm test
+bun run test
 
 # Integration tests require credentials:
 export DUOLINGO_USERNAME="your_username"
 export DUOLINGO_JWT="your_jwt_token"
-npm test
+bun run test
 
 # Type-check without building
-npm run typecheck
+bun run typecheck
 
 # Run MCP server in dev mode (no build step)
-npm run dev
+bun run dev
 ```
 
 ### Project Structure

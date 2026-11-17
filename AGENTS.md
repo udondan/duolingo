@@ -23,8 +23,12 @@ validation, and Axios for HTTP.
 
 ## Build, Lint & Test Commands
 
-This project uses **mise** (`mise.toml`) to manage tasks and the Node.js
-toolchain. Always prefer `mise run <task>` over invoking npm scripts directly.
+This project uses **mise** (`mise.toml`) to manage tasks and the toolchain.
+Node.js and Bun versions are pinned only in `mise.toml`; the workflows install
+them with `jdx/mise-action`. Bun is the package manager (`bun.lock`, installs
+with `bun install --frozen-lockfile`). Node runs the CLI, the MCP server, the
+tests and the Docker image; npm is only used for `npm pack`/`npm publish`.
+Always prefer `mise run <task>` over invoking package scripts directly.
 Mise tasks handle dependencies automatically (e.g. `build` runs `install` first).
 
 ```bash
@@ -51,10 +55,10 @@ mise run "test:watch"        # watch mode
 mise run "test:coverage"     # with v8 coverage
 
 # Run a single test file (invoke vitest directly)
-npx vitest run tests/tools/account.test.ts
+bunx vitest run tests/tools/account.test.ts
 
 # Run tests matching a name pattern
-npx vitest run -t "getUserData"
+bunx vitest run -t "getUserData"
 
 # Run all quality checks at once (typecheck + lint + format:check + test)
 mise run check
@@ -253,4 +257,12 @@ mise run "format:check"
 mise run test
 ```
 
-CI runs these automatically via `.github/workflows/ci.yml`.
+CI runs these automatically via `.github/workflows/ci.yml`. Every job except
+`required` waits for boarding-gate (job `Queue`, one run at a time because the
+integration tests share one live Duolingo account) and fails if it failed:
+while another run holds the turn, the branch likely needs a rebase anyway, so
+nothing runs in parallel. On pull requests the `changes` job
+(`dorny/paths-filter`) decides whether the tests and the Docker job run; when
+the code or the build starts depending on another file, add it to that filter,
+or the tests silently skip. `actions` (actionlint, zizmor) and `qlty` always
+run.

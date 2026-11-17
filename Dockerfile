@@ -1,13 +1,21 @@
 # Expects a compiled dist/ next to it: `mise run docker-build` builds it first.
 # TypeScript and the rest of the dev tooling stay out of the Docker build.
+
+# Installs the runtime dependencies from bun.lock. Keep the Bun version in line
+# with mise.toml, Renovate updates both together.
+FROM oven/bun:1.4.4-alpine AS deps
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
 FROM node:26-alpine
 
 LABEL com.docker.desktop.mcp="true"
 LABEL com.docker.desktop.mcp.name="duolingo"
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY package.json ./
+COPY --from=deps /app/node_modules/ node_modules/
 
 COPY dist/ dist/
 
