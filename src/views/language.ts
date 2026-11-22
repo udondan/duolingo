@@ -182,19 +182,37 @@ export function reviewableTopicsView(opts: LanguageQuery): Promise<View> {
 }
 
 export async function knownWordsView(opts: LanguageQuery): Promise<View> {
+  const abbr = opts.language_abbr;
   const langData = await loadLanguage(opts);
-  if (isView(langData)) return langData;
 
   const wordSet = new Set<string>();
-  for (const skill of langData.skills) {
-    if (skill.learned) {
-      for (const word of skill.words) {
-        wordSet.add(word);
+  if (!isView(langData)) {
+    for (const skill of langData.skills) {
+      if (skill.learned) {
+        for (const word of skill.words) {
+          wordSet.add(word);
+        }
       }
     }
   }
+
+  // Courses on the learning path have an empty legacy skill tree. For the
+  // authenticated user, read the words from learned-lexemes instead.
+  if (wordSet.size === 0 && !opts.username) {
+    const lexemes = await getClient().getLearnedLexemes(abbr);
+    if (lexemes) {
+      for (const lexeme of lexemes) wordSet.add(lexeme.text);
+    } else if (isView(langData)) {
+      return notFound(
+        `Language '${abbr}' not found or not the current course. ` +
+          'Known words are only available for the current course.',
+      );
+    }
+  } else if (isView(langData)) {
+    return langData;
+  }
+
   const words = [...wordSet].sort();
-  const abbr = opts.language_abbr;
 
   return {
     data: words,

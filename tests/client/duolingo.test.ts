@@ -697,6 +697,80 @@ describe('DuolingoClient', () => {
   });
 
   // -------------------------------------------------------------------------
+  // getLearnedLexemes
+  // -------------------------------------------------------------------------
+  describe('getLearnedLexemes', () => {
+    const COURSE = {
+      currentCourse: {
+        learningLanguage: 'zh',
+        fromLanguage: 'en',
+        skills: [
+          [{ id: 'food', finishedLevels: 2, finishedLessons: 3 }],
+          [{ id: 'locked', finishedLevels: 0, finishedLessons: 0 }],
+        ],
+      },
+    };
+
+    function makeLexemeClient(lexemes: unknown): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          ['/learned-lexemes', { status: 200, data: lexemes }],
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/users/12345?fields=', { status: 200, data: COURSE }],
+        ]),
+      );
+    }
+
+    it('returns the words of the current course', async () => {
+      const learnedLexemes = [{ text: '辣', translations: ['spicy'] }];
+      const client = makeLexemeClient({
+        learnedLexemes,
+        pagination: { nextStartIndex: null },
+      });
+      expect(await client.getLearnedLexemes('zh')).toEqual(learnedLexemes);
+      expect(httpMock(client).post.mock.calls[0]![0]).toContain(
+        '/2017-06-30/users/12345/courses/zh/en/learned-lexemes',
+      );
+      expect(postBody(client)).toEqual({
+        lastTotalLexemeCount: 0,
+        progressedSkills: [
+          { finishedLevels: 2, finishedSessions: 3, skillId: { id: 'food' } },
+        ],
+      });
+    });
+
+    it('accepts the legacy code zs for Chinese', async () => {
+      const client = makeLexemeClient({ learnedLexemes: [] });
+      expect(await client.getLearnedLexemes('zs')).toEqual([]);
+    });
+
+    it('returns null for a language that is not the current course', async () => {
+      const client = makeLexemeClient({ learnedLexemes: [] });
+      expect(await client.getLearnedLexemes('es')).toBeNull();
+      expect(httpMock(client).post).not.toHaveBeenCalled();
+    });
+
+    it('follows pagination', async () => {
+      const client = makeLexemeClient({});
+      httpMock(client)
+        .post.mockResolvedValueOnce({
+          data: {
+            learnedLexemes: [{ text: '好吃' }],
+            pagination: { nextStartIndex: 1 },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: { learnedLexemes: [{ text: '辣' }], pagination: {} },
+        });
+      expect(await client.getLearnedLexemes('zh')).toEqual([
+        { text: '好吃' },
+        { text: '辣' },
+      ]);
+      expect(httpMock(client).post.mock.calls[1]![0]).toContain('startIndex=1');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // getTtsBaseUrl / buildAudioUrl
   // -------------------------------------------------------------------------
   describe('buildAudioUrl', () => {

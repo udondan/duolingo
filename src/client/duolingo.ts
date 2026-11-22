@@ -20,6 +20,9 @@ import {
   type VoiceUrlDictionary,
 } from './tts.js';
 import type {
+  DuolingoCurrentCourseResponse,
+  DuolingoLearnedLexeme,
+  DuolingoLearnedLexemesResponse,
   DuolingoUserData,
   DuolingoDailyProgress,
   DuolingoFollowingResponse,
@@ -423,6 +426,60 @@ export class DuolingoClient {
     return langDict;
   }
 
+  /**
+   * Get the words the authenticated user has learned in their current course,
+   * most recently learned first, from the learned-lexemes endpoint behind the
+   * Words page.
+   *
+   * Courses on the learning path leave the legacy skill tree in
+   * `language_data` empty, so this is the only source of words for them. The
+   * endpoint needs the course's skill progress, which the API only returns for
+   * the current course: for any other language this returns `null`.
+   *
+   * Accepts the legacy code 'zs' for Chinese as well as 'zh'.
+   */
+  async getLearnedLexemes(
+    langAbbr: string,
+  ): Promise<DuolingoLearnedLexeme[] | null> {
+    const userId = await this.getAuthenticatedUserId();
+    const fields = encodeURIComponent(
+      'currentCourse{learningLanguage,fromLanguage,skills{id,finishedLevels,finishedLessons}}',
+    );
+    const courseResp = await this.makeRequest<DuolingoCurrentCourseResponse>(
+      `${BASE_URL}/2017-06-30/users/${userId}?fields=${fields}&_=${Date.now()}`,
+    );
+    const course = courseResp.currentCourse;
+    const wanted = langAbbr === 'zs' ? 'zh' : langAbbr;
+    if (!course?.learningLanguage || course.learningLanguage !== wanted) {
+      return null;
+    }
+    const fromLanguage = course.fromLanguage ?? 'en';
+    const progressedSkills = (course.skills ?? [])
+      .flat()
+      .filter(
+        (s) => (s.finishedLevels ?? 0) > 0 || (s.finishedLessons ?? 0) > 0,
+      )
+      .map((s) => ({
+        finishedLevels: s.finishedLevels ?? 0,
+        finishedSessions: s.finishedLessons ?? 0,
+        skillId: { id: s.id },
+      }));
+
+    const words: DuolingoLearnedLexeme[] = [];
+    let startIndex: number | null | undefined = 0;
+    while (typeof startIndex === 'number') {
+      const url = `${BASE_URL}/2017-06-30/users/${userId}/courses/${course.learningLanguage}/${fromLanguage}/learned-lexemes?sortBy=LEARNED_DATE&startIndex=${startIndex}&limit=500`;
+      const resp: DuolingoLearnedLexemesResponse =
+        await this.makePostRequest<DuolingoLearnedLexemesResponse>(url, {
+          lastTotalLexemeCount: 0,
+          progressedSkills,
+        });
+      words.push(...(resp.learnedLexemes ?? []));
+      startIndex = resp.pagination?.nextStartIndex;
+    }
+    return words;
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -435,6 +492,15 @@ export class DuolingoClient {
     const userData = await this.getUserData();
     const langData = userData.language_data?.[langAbbr];
     return langData && langAbbr === 'en' ? 'de' : 'en';
+  }
+
+  private async makePostRequest<T>(url: string, body: unknown): Promise<T> {
+    try {
+      const resp = await this.http.post<T>(url, body);
+      return resp.data;
+    } catch (err) {
+      throw toRequestError(err, url);
+    }
   }
 
   private async makeRequest<T>(url: string): Promise<T> {

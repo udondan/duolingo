@@ -290,3 +290,32 @@ export interface DuolingoSessionResponse {
   /** Map of TTS URL → annotation data. Keys are the TTS CDN URLs. */
   ttsAnnotations?: Record<string, unknown>;
 }
+
+/** Progress in one skill of the current course, as sent to learned-lexemes. */
+export interface DuolingoCurrentCourseSkill {
+  id: string;
+  finishedLevels?: number;
+  finishedLessons?: number;
+}
+
+/** The fields of the current course that learned-lexemes needs. */
+export interface DuolingoCurrentCourseResponse {
+  currentCourse?: {
+    learningLanguage?: string;
+    fromLanguage?: string;
+    skills?: DuolingoCurrentCourseSkill[][];
+  };
+}
+
+/** A word from the learned-lexemes endpoint. */
+export interface DuolingoLearnedLexeme {
+  text: string;
+  translations?: string[];
+  audioURL?: string;
+  isNew?: boolean;
+}
+
+export interface DuolingoLearnedLexemesResponse {
+  learnedLexemes?: DuolingoLearnedLexeme[];
+  pagination?: { totalLexemes?: number; nextStartIndex?: number | null };
+}

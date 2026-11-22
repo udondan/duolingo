@@ -557,7 +557,7 @@ describe('language views', () => {
   });
 
   it('topic, word and skill views without the language', async () => {
-    mockClient({ getUserData: {} });
+    mockClient({ getUserData: {}, getLearnedLexemes: null });
     for (const view of [knownTopicsView, knownWordsView, learnedSkillsView]) {
       const result = await view({ language_abbr: 'xx' });
       expect(result.data).toBeUndefined();
@@ -572,6 +572,7 @@ describe('language views', () => {
           fr: { skills: [skill({ learned: false, words: ['non'] })] },
         },
       },
+      getLearnedLexemes: [],
     });
     const opts = { language_abbr: 'fr' };
     expect((await knownTopicsView(opts)).markdown()).toBe(
@@ -583,6 +584,46 @@ describe('language views', () => {
     expect((await learnedSkillsView(opts)).markdown()).toBe(
       "No learned skills found for language 'fr'.",
     );
+  });
+
+  it('knownWordsView falls back to learned lexemes for path courses', async () => {
+    const getLearnedLexemes = vi
+      .fn()
+      .mockResolvedValue([{ text: '辣' }, { text: '好吃' }, { text: '辣' }]);
+    mockClient({
+      getUserData: { language_data: { zs: { skills: [] } } },
+      getLearnedLexemes,
+    });
+    const result = await knownWordsView({ language_abbr: 'zh' });
+    expect(getLearnedLexemes).toHaveBeenCalledWith('zh');
+    expect(result.data).toEqual(['好吃', '辣']);
+    expect(result.markdown()).toBe(
+      ['# Known Words (ZH) — 2 words', '', '好吃, 辣'].join('\n'),
+    );
+  });
+
+  it('knownWordsView prefers words from the legacy skill tree', async () => {
+    const getLearnedLexemes = vi.fn();
+    mockClient({
+      getUserData: {
+        language_data: { fr: { skills: [skill({ words: ['oui'] })] } },
+      },
+      getLearnedLexemes,
+    });
+    const result = await knownWordsView({ language_abbr: 'fr' });
+    expect(result.data).toEqual(['oui']);
+    expect(getLearnedLexemes).not.toHaveBeenCalled();
+  });
+
+  it('knownWordsView does not use learned lexemes for other users', async () => {
+    const getLearnedLexemes = vi.fn();
+    mockClient({ getUserData: {}, getLearnedLexemes });
+    const result = await knownWordsView({
+      language_abbr: 'fr',
+      username: 'someone',
+    });
+    expect(result.message).toContain("Language 'fr' not found");
+    expect(getLearnedLexemes).not.toHaveBeenCalled();
   });
 
   it('learnedSkillsView orders skills by dependencies', async () => {
