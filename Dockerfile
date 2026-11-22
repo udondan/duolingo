@@ -3,7 +3,7 @@
 
 # Installs the runtime dependencies from bun.lock. Keep the Bun version in line
 # with mise.toml, Renovate updates both together.
-FROM oven/bun:1.4.4-alpine AS deps
+FROM oven/bun:1.4.5-alpine AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production --ignore-scripts

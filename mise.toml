@@ -6,7 +6,7 @@ jobs = 1
 # install them with jdx/mise-action. Node stays on the same major as the Docker
 # base image, Bun on the version of the Bun image in the Dockerfile.
 node = "26"
-bun = "1.4.4"
+bun = "1.4.5"
 # Workflow linters for the CI actions job, which installs only these three.
 actionlint = "1.7.12"
 # The runner's own shellcheck is older and reports differently. actionlint runs it over every `run:` block.
