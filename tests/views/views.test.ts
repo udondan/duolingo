@@ -26,12 +26,15 @@ import { friendsView, leaderboardView } from '../../src/views/social.js';
 import {
   audioUrlView,
   computeDependencyOrder,
+  goldenTopicsView,
   knownTopicsView,
   knownWordsView,
   languageDetailsView,
   languageProgressView,
   languageVoicesView,
   learnedSkillsView,
+  reviewableTopicsView,
+  unknownTopicsView,
 } from '../../src/views/language.js';
 import {
   abbreviationOfView,
@@ -592,6 +595,7 @@ describe('language views', () => {
       .mockResolvedValue([{ text: '辣' }, { text: '好吃' }, { text: '辣' }]);
     mockClient({
       getUserData: { language_data: { zs: { skills: [] } } },
+      getCurrentCourse: null,
       getLearnedLexemes,
     });
     const result = await knownWordsView({ language_abbr: 'zh' });
@@ -624,6 +628,106 @@ describe('language views', () => {
     });
     expect(result.message).toContain("Language 'fr' not found");
     expect(getLearnedLexemes).not.toHaveBeenCalled();
+  });
+
+  describe('path courses', () => {
+    const PATH_COURSE = {
+      learningLanguage: 'zh',
+      fromLanguage: 'en',
+      skills: [
+        {
+          id: 'a',
+          name: 'Food',
+          finishedLevels: 2,
+          finishedLessons: 3,
+          levels: 6,
+        },
+        {
+          id: 'b',
+          name: 'Family',
+          finishedLevels: 6,
+          finishedLessons: 0,
+          levels: 6,
+        },
+        { id: 'c', name: 'Travel', finishedLevels: 0, levels: 6 },
+      ],
+    };
+
+    function mockPathCourse(): ReturnType<typeof vi.fn> {
+      const getCurrentCourse = vi.fn().mockResolvedValue(PATH_COURSE);
+      mockClient({
+        getUserData: {
+          language_data: {
+            zs: {
+              language: 'zs',
+              language_string: 'Chinese (Simplified)',
+              level: 9,
+              level_percent: 24,
+              level_left: 456,
+              points: 1794,
+              streak: 61,
+              num_skills_learned: 0,
+              fluency_score: 0,
+              skills: [],
+            },
+          },
+        },
+        getCurrentCourse,
+      });
+      return getCurrentCourse;
+    }
+
+    it('topic views read the skills of the current course', async () => {
+      const getCurrentCourse = mockPathCourse();
+      const opts = { language_abbr: 'zh' };
+      expect((await knownTopicsView(opts)).data).toEqual(['Family', 'Food']);
+      expect((await unknownTopicsView(opts)).data).toEqual(['Travel']);
+      expect((await goldenTopicsView(opts)).data).toEqual(['Family']);
+      expect((await reviewableTopicsView(opts)).data).toEqual(['Food']);
+      expect(getCurrentCourse).toHaveBeenCalledWith('zh');
+    });
+
+    it('learnedSkillsView shows the levels of path skills', async () => {
+      mockPathCourse();
+      expect(
+        (await learnedSkillsView({ language_abbr: 'zh' })).markdown(),
+      ).toBe(
+        [
+          '# Learned Skills (ZH)',
+          '',
+          '- **Food** — Level: 2/6',
+          '- **Family** — Level: 6/6',
+        ].join('\n'),
+      );
+    });
+
+    it('languageProgressView finds zh and counts path skills', async () => {
+      mockPathCourse();
+      const result = await languageProgressView({ language_abbr: 'zh' });
+      expect(result.data).toMatchObject({
+        language: 'zs',
+        level: 9,
+        num_skills_learned: 2,
+      });
+    });
+
+    it('keeps an empty skill tree when the course is not current', async () => {
+      mockClient({
+        getUserData: { language_data: { fr: { skills: [] } } },
+        getCurrentCourse: null,
+      });
+      expect((await knownTopicsView({ language_abbr: 'fr' })).data).toEqual([]);
+    });
+
+    it('does not read the current course for other users', async () => {
+      const getCurrentCourse = mockPathCourse();
+      const result = await knownTopicsView({
+        language_abbr: 'zh',
+        username: 'someone',
+      });
+      expect(result.data).toEqual([]);
+      expect(getCurrentCourse).not.toHaveBeenCalled();
+    });
   });
 
   it('learnedSkillsView orders skills by dependencies', async () => {

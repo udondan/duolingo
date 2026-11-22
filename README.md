@@ -326,10 +326,16 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 | `duolingo_get_unknown_topics`    | Not-yet-learned topics                                    |
 | `duolingo_get_golden_topics`     | Fully mastered topics (strength = 1.0)                    |
 | `duolingo_get_reviewable_topics` | Learned but not fully mastered topics                     |
-| `duolingo_get_known_words`       | Set of known words for a language (path courses: current course only) |
+| `duolingo_get_known_words`       | Set of known words for a language                         |
 | `duolingo_get_learned_skills`    | Full skill objects sorted by learning order               |
 | `duolingo_get_language_voices`   | Available TTS voice names for a language                  |
 | `duolingo_get_audio_url`         | Pronunciation audio URL for a word                        |
+
+Courses on the learning path no longer fill the legacy skill tree. For the
+authenticated user's current course, the topic, skill and word tools read it
+from the current API instead: there, a topic is mastered once all its levels
+(crowns) are finished, and words come from the Words page. Other courses
+return no topics, skills or words.
 
 #### Utilities
 

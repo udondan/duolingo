@@ -750,6 +750,17 @@ describe('DuolingoClient', () => {
       expect(httpMock(client).post).not.toHaveBeenCalled();
     });
 
+    it('getCurrentCourse flattens the skills and caches the course', async () => {
+      const client = makeLexemeClient({});
+      const course = await client.getCurrentCourse('zh');
+      expect(course?.skills.map((s) => s.id)).toEqual(['food', 'locked']);
+      expect(await client.getCurrentCourse('es')).toBeNull();
+      const courseCalls = httpMock(client).get.mock.calls.filter(
+        (call: unknown[]) => String(call[0]).includes('?fields='),
+      );
+      expect(courseCalls).toHaveLength(1);
+    });
+
     it('follows pagination', async () => {
       const client = makeLexemeClient({});
       httpMock(client)

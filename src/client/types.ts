@@ -291,14 +291,24 @@ export interface DuolingoSessionResponse {
   ttsAnnotations?: Record<string, unknown>;
 }
 
-/** Progress in one skill of the current course, as sent to learned-lexemes. */
+/** A skill of the current course, with the user's progress in it. */
 export interface DuolingoCurrentCourseSkill {
   id: string;
+  name?: string;
   finishedLevels?: number;
   finishedLessons?: number;
+  /** Number of levels (crowns) of the skill. */
+  levels?: number;
 }
 
-/** The fields of the current course that learned-lexemes needs. */
+/** The skills of the current course, in path order. */
+export interface DuolingoCurrentCourse {
+  learningLanguage: string;
+  fromLanguage: string;
+  skills: DuolingoCurrentCourseSkill[];
+}
+
+/** The fields of the current course that the client requests. */
 export interface DuolingoCurrentCourseResponse {
   currentCourse?: {
     learningLanguage?: string;

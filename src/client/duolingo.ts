@@ -20,6 +20,7 @@ import {
   type VoiceUrlDictionary,
 } from './tts.js';
 import type {
+  DuolingoCurrentCourse,
   DuolingoCurrentCourseResponse,
   DuolingoLearnedLexeme,
   DuolingoLearnedLexemesResponse,
@@ -54,6 +55,9 @@ export class DuolingoClient {
 
   /** Cache of v2 user data keyed by numeric user ID. */
   private readonly userDataV2Cache = new Map<number, DuolingoUserDataV2>();
+  /** Cache of the authenticated user's current course. */
+  private currentCourseCache: Promise<DuolingoCurrentCourse | null> | null =
+    null;
 
   /**
    * Cached set of voice names discovered for each language via the session API.
@@ -427,35 +431,59 @@ export class DuolingoClient {
   }
 
   /**
+   * Get the skills of the authenticated user's current course, in path order.
+   *
+   * Courses on the learning path leave the legacy skill tree in
+   * `language_data` empty; this reads the skills from the current API
+   * instead. The API only returns skills for the current course, so for any
+   * other language this returns `null`. Accepts the legacy code 'zs' for
+   * Chinese as well as 'zh'.
+   */
+  async getCurrentCourse(
+    langAbbr: string,
+  ): Promise<DuolingoCurrentCourse | null> {
+    this.currentCourseCache ??= this.fetchCurrentCourse();
+    const course = await this.currentCourseCache;
+    if (!course) return null;
+    const wanted = langAbbr === 'zs' ? 'zh' : langAbbr;
+    return course.learningLanguage === wanted ? course : null;
+  }
+
+  private async fetchCurrentCourse(): Promise<DuolingoCurrentCourse | null> {
+    const userId = await this.getAuthenticatedUserId();
+    const fields = encodeURIComponent(
+      'currentCourse{learningLanguage,fromLanguage,' +
+        'skills{id,name,finishedLevels,finishedLessons,levels}}',
+    );
+    const resp = await this.makeRequest<DuolingoCurrentCourseResponse>(
+      `${BASE_URL}/2017-06-30/users/${userId}?fields=${fields}&_=${Date.now()}`,
+    );
+    const course = resp.currentCourse;
+    if (!course?.learningLanguage) return null;
+    return {
+      learningLanguage: course.learningLanguage,
+      fromLanguage: course.fromLanguage ?? 'en',
+      skills: (course.skills ?? []).flat(),
+    };
+  }
+
+  /**
    * Get the words the authenticated user has learned in their current course,
    * most recently learned first, from the learned-lexemes endpoint behind the
    * Words page.
    *
-   * Courses on the learning path leave the legacy skill tree in
-   * `language_data` empty, so this is the only source of words for them. The
-   * endpoint needs the course's skill progress, which the API only returns for
-   * the current course: for any other language this returns `null`.
-   *
-   * Accepts the legacy code 'zs' for Chinese as well as 'zh'.
+   * Courses on the learning path have no words in the legacy skill tree, so
+   * this is the only source of words for them. The endpoint needs the course's
+   * skill progress, which the API only returns for the current course: for
+   * any other language this returns `null`.
    */
   async getLearnedLexemes(
     langAbbr: string,
   ): Promise<DuolingoLearnedLexeme[] | null> {
+    const course = await this.getCurrentCourse(langAbbr);
+    if (!course) return null;
     const userId = await this.getAuthenticatedUserId();
-    const fields = encodeURIComponent(
-      'currentCourse{learningLanguage,fromLanguage,skills{id,finishedLevels,finishedLessons}}',
-    );
-    const courseResp = await this.makeRequest<DuolingoCurrentCourseResponse>(
-      `${BASE_URL}/2017-06-30/users/${userId}?fields=${fields}&_=${Date.now()}`,
-    );
-    const course = courseResp.currentCourse;
-    const wanted = langAbbr === 'zs' ? 'zh' : langAbbr;
-    if (!course?.learningLanguage || course.learningLanguage !== wanted) {
-      return null;
-    }
-    const fromLanguage = course.fromLanguage ?? 'en';
-    const progressedSkills = (course.skills ?? [])
-      .flat()
+    const progressedSkills = course.skills
       .filter(
         (s) => (s.finishedLevels ?? 0) > 0 || (s.finishedLessons ?? 0) > 0,
       )
@@ -468,7 +496,7 @@ export class DuolingoClient {
     const words: DuolingoLearnedLexeme[] = [];
     let startIndex: number | null | undefined = 0;
     while (typeof startIndex === 'number') {
-      const url = `${BASE_URL}/2017-06-30/users/${userId}/courses/${course.learningLanguage}/${fromLanguage}/learned-lexemes?sortBy=LEARNED_DATE&startIndex=${startIndex}&limit=500`;
+      const url = `${BASE_URL}/2017-06-30/users/${userId}/courses/${course.learningLanguage}/${course.fromLanguage}/learned-lexemes?sortBy=LEARNED_DATE&startIndex=${startIndex}&limit=500`;
       const resp: DuolingoLearnedLexemesResponse =
         await this.makePostRequest<DuolingoLearnedLexemesResponse>(url, {
           lastTotalLexemeCount: 0,
