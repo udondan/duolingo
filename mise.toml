@@ -11,7 +11,7 @@ bun = "1.4.5"
 actionlint = "1.7.12"
 # The runner's own shellcheck is older and reports differently. actionlint runs it over every `run:` block.
 shellcheck = "0.11.0"
-zizmor = "1.32.0"
+zizmor = "1.33.0"
 # The `docker mcp` plugin for the Docker CI job. Docker Desktop ships its own.
 "github:docker/mcp-gateway" = "0.44.1"
 
