@@ -104,10 +104,14 @@ export class DuolingoClient {
 
   /**
    * Invalidate the user data cache for a specific username (or all).
+   * Usernames are case-insensitive, so every spelling of it is dropped.
    */
   invalidateCache(username?: string): void {
     if (username) {
-      this.userDataCache.delete(username);
+      const name = username.toLowerCase();
+      for (const key of this.userDataCache.keys()) {
+        if (key.toLowerCase() === name) this.userDataCache.delete(key);
+      }
     } else {
       this.userDataCache.clear();
     }
@@ -574,7 +578,10 @@ export class DuolingoClient {
     this.userDataV2Cache.delete(userId);
     // Duolingo answers some requests it does not handle with the web app's
     // HTML page, so only a reply that names the new course counts.
-    if (resp.learningLanguage !== course.learningLanguage) {
+    if (
+      resp.learningLanguage !== course.learningLanguage ||
+      resp.fromLanguage !== course.fromLanguage
+    ) {
       throw new DuolingoClientError(
         `Duolingo did not confirm the switch to '${langAbbr}'.`,
       );

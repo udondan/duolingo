@@ -215,6 +215,26 @@ describe('DuolingoClient', () => {
       expect(mockGet).toHaveBeenCalledTimes(2);
     });
 
+    it('invalidates every spelling of a username', async () => {
+      const responses = new Map([
+        ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+        ['/users/TestUser', { status: 200, data: MOCK_USER_DATA }],
+        ['/users/other', { status: 200, data: MOCK_USER_DATA }],
+      ]);
+      const client = makeClientWithMockHttp(responses);
+      const mockGet = (
+        client as unknown as { http: { get: ReturnType<typeof vi.fn> } }
+      ).http.get;
+
+      await client.getUserData('TestUser');
+      await client.getUserData('other');
+      client.invalidateCache('testuser');
+      await client.getUserData('TestUser');
+      await client.getUserData('other');
+
+      expect(mockGet).toHaveBeenCalledTimes(3);
+    });
+
     it('throws DuolingoNotFoundError on 404', async () => {
       const client = makeClientWithMockHttp(
         new Map([['/users/nobody', { status: 404, data: {} }]]),
@@ -776,10 +796,20 @@ describe('DuolingoClient', () => {
     it('picks the course by its source language', async () => {
       const client = makeSwitchClient({
         status: 200,
-        data: { learningLanguage: 'fr' },
+        data: { learningLanguage: 'fr', fromLanguage: 'de' },
       });
       const course = await client.switchCourse('fr', 'de');
       expect(course.id).toBe('DUOLINGO_FR_DE');
+    });
+
+    it('fails when Duolingo switched to another source language', async () => {
+      const client = makeSwitchClient({
+        status: 200,
+        data: { learningLanguage: 'fr', fromLanguage: 'en' },
+      });
+      await expect(client.switchCourse('fr', 'de')).rejects.toThrow(
+        "Duolingo did not confirm the switch to 'fr'.",
+      );
     });
 
     it('asks for the source language when there are several', async () => {
@@ -820,7 +850,7 @@ describe('DuolingoClient', () => {
     it('reloads the user data after the switch', async () => {
       const client = makeSwitchClient({
         status: 200,
-        data: { learningLanguage: 'zh' },
+        data: { learningLanguage: 'zh', fromLanguage: 'en' },
       });
       await client.getUserData();
       await client.switchCourse('zh');
