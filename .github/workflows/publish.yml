@@ -35,6 +35,59 @@ jobs:
       - name: Publish
         run: npm publish --provenance --access public
 
+  # Lists the release in the MCP Registry as io.github.udondan/duolingo. The
+  # registry checks `mcpName` of the npm package just published, and accepts
+  # the namespace via GitHub OIDC.
+  mcp-registry:
+    name: Publish to the MCP Registry
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # login github-oidc
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.16
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # release-please keeps server.json in step with package.json.
+      - name: Check the version in server.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${TAG#v}"
+          jq -e --arg v "$version" '.version == $v and .packages[0].version == $v' server.json \
+            || { echo "::error::server.json doesn't name version $version"; exit 1; }
+
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # A fixed release, verified against its Sigstore bundle.
+      - name: Download mcp-publisher
+        run: |
+          set -euo pipefail
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          archive="mcp-publisher_${os}_${arch}.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+
+      - name: Log in
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        run: ./mcp-publisher publish
+
   # Docker Hub has no OIDC for personal accounts, so this uses an access
   # token, stored only in the environment `docker-hub`.
   docker:
