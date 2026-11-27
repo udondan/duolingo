@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/udondan/duolingo/compare/v2.1.1...v2.2.0) (2026-11-27)
+
+
+### Features
+
+* switch the active course ([#123](https://github.com/udondan/duolingo/issues/123)) ([22bc594](https://github.com/udondan/duolingo/commit/22bc5941f18922afd83dc070f7129431a63edc86))
+
 ## [2.1.1](https://github.com/udondan/duolingo/compare/v2.1.0...v2.1.1) (2026-11-27)
 
 
