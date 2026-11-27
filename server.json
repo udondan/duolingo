@@ -3,7 +3,7 @@
   "name": "io.github.udondan/duolingo",
   "title": "Duolingo",
   "description": "Duolingo profile, streak, XP, courses, words and friends; can switch the active course",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "repository": {
     "url": "https://github.com/udondan/duolingo",
     "source": "github"
@@ -13,7 +13,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@udondan/duolingo",
-      "version": "2.1.1",
+      "version": "2.2.0",
       "runtimeHint": "npx",
       "packageArguments": [
         {
