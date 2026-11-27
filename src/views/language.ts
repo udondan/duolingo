@@ -4,12 +4,14 @@
  */
 
 import { getClient, type DuolingoClient } from '../client/duolingo.js';
-import type {
-  DuolingoCurrentCourseSkill,
-  DuolingoLanguageData,
-  DuolingoSkill,
-  DuolingoUserData,
-} from '../client/types.js';
+import type { DuolingoLanguageData, DuolingoSkill } from '../client/types.js';
+import {
+  languageData,
+  pathCourseWords,
+  pathSkillLevel,
+  pathSkillsLearned,
+  withPathSkills,
+} from './path-course.js';
 import { notFound, textView, type View } from './view.js';
 
 export async function languageDetailsView(opts: {
@@ -72,12 +74,9 @@ export async function languageProgressView(opts: {
     );
   }
   // Path courses report 0 here; count the skills of the current course.
-  let numSkillsLearned = langData.num_skills_learned;
-  if (numSkillsLearned === 0) {
-    const course = await client.getCurrentCourse(language_abbr);
-    numSkillsLearned =
-      course?.skills.filter((s) => (s.finishedLevels ?? 0) > 0).length ?? 0;
-  }
+  const numSkillsLearned =
+    langData.num_skills_learned ||
+    (await pathSkillsLearned(client, language_abbr));
 
   const progress = {
     language: langData.language,
@@ -126,48 +125,6 @@ export interface LanguageQuery {
   username?: string;
 }
 
-/** Language codes that the legacy API uses in place of the current ones. */
-const LEGACY_LANGUAGE_CODES: Record<string, string> = { zh: 'zs', zs: 'zh' };
-
-/**
- * The legacy language data of a language, by its current or legacy code
- * (Chinese is 'zh' in the current API but 'zs' in `language_data`).
- */
-function languageData(
-  userData: DuolingoUserData,
-  abbr: string,
-): DuolingoLanguageData | undefined {
-  const data = userData.language_data;
-  if (!data) return undefined;
-  const legacy = LEGACY_LANGUAGE_CODES[abbr];
-  return data[abbr] ?? (legacy === undefined ? undefined : data[legacy]);
-}
-
-/**
- * A skill of the current course in the shape of a legacy skill. Path courses
- * have no skill strength, so `strength` is the share of the skill's levels
- * (crowns) the user has finished, and `progress_percent` the same share in
- * percent. Words are not available per skill.
- */
-function pathSkill(skill: DuolingoCurrentCourseSkill): DuolingoSkill {
-  const finishedLevels = skill.finishedLevels ?? 0;
-  const levels = skill.levels ?? 0;
-  const name = skill.name ?? skill.id;
-  const strength = levels > 0 ? Math.min(finishedLevels / levels, 1) : 0;
-  return {
-    id: skill.id,
-    name,
-    title: name,
-    learned: finishedLevels > 0,
-    strength,
-    progress_percent: strength * 100,
-    words: [],
-    dependencies_name: [],
-    finished_levels: finishedLevels,
-    levels,
-  };
-}
-
 /**
  * Load the language data of a user, or a not-found view when the user does
  * not learn the language.
@@ -187,10 +144,8 @@ async function loadLanguage(
       `Language '${opts.language_abbr}' not found. Make sure the user is learning this language.`,
     );
   }
-  if (langData.skills.length > 0 || opts.username) return langData;
-  const course = await client.getCurrentCourse(opts.language_abbr);
-  if (!course) return langData;
-  return { ...langData, skills: course.skills.map(pathSkill) };
+  if (opts.username) return langData;
+  return withPathSkills(client, langData, opts.language_abbr);
 }
 
 function isView(value: DuolingoLanguageData | View): value is View {
@@ -243,38 +198,26 @@ export function reviewableTopicsView(opts: LanguageQuery): Promise<View> {
   );
 }
 
+/** The words of the learned skills of the legacy skill tree. */
+function legacyWords(langData: DuolingoLanguageData | View): string[] {
+  if (isView(langData)) return [];
+  return langData.skills.filter((s) => s.learned).flatMap((s) => s.words);
+}
+
 export async function knownWordsView(opts: LanguageQuery): Promise<View> {
   const abbr = opts.language_abbr;
   const langData = await loadLanguage(opts);
 
-  const wordSet = new Set<string>();
-  if (!isView(langData)) {
-    for (const skill of langData.skills) {
-      if (skill.learned) {
-        for (const word of skill.words) {
-          wordSet.add(word);
-        }
-      }
-    }
-  }
-
   // Courses on the learning path have an empty legacy skill tree. For the
   // authenticated user, read the words from learned-lexemes instead.
-  if (wordSet.size === 0 && !opts.username) {
-    const lexemes = await getClient().getLearnedLexemes(abbr);
-    if (lexemes) {
-      for (const lexeme of lexemes) wordSet.add(lexeme.text);
-    } else if (isView(langData)) {
-      return notFound(
-        `Language '${abbr}' not found or not the current course. ` +
-          'Known words are only available for the current course.',
-      );
-    }
-  } else if (isView(langData)) {
-    return langData;
-  }
+  const legacy = legacyWords(langData);
+  const pathWords =
+    legacy.length === 0
+      ? await pathCourseWords(getClient(), abbr, opts.username)
+      : undefined;
+  if (isView(langData) && !pathWords) return langData;
 
-  const words = [...wordSet].sort();
+  const words = [...new Set(pathWords ?? legacy)].sort();
 
   return {
     data: words,
@@ -312,11 +255,9 @@ export async function learnedSkillsView(opts: LanguageQuery): Promise<View> {
       }
       const lines = [`# Learned Skills (${abbr.toUpperCase()})`, ''];
       for (const skill of learnedSkills) {
-        const { finished_levels, levels } = skill;
-        if (typeof finished_levels === 'number' && typeof levels === 'number') {
-          lines.push(
-            `- **${skill.title}** — Level: ${finished_levels}/${levels}`,
-          );
+        const level = pathSkillLevel(skill);
+        if (level) {
+          lines.push(`- **${skill.title}** — Level: ${level}`);
           continue;
         }
         const strengthPct = Math.round(skill.strength * 100);
