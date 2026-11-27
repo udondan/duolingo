@@ -268,5 +268,7 @@ while another run holds the turn, the branch likely needs a rebase anyway, so
 nothing runs in parallel. On pull requests the `changes` job
 (`dorny/paths-filter`) decides whether the tests and the Docker job run; when
 the code or the build starts depending on another file, add it to that filter,
-or the tests silently skip. `actions` (actionlint, zizmor) and `qlty` always
-run.
+or the tests silently skip. The `ci` job also lints the tool descriptions of
+the MCP server with `bun run lint:tools` (mcp-tdqs, the deterministic checks
+of Glama's Tool Definition Quality Score); warnings fail it. `actions`
+(actionlint, zizmor) and `qlty` always run.
