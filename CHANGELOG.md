@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/udondan/duolingo/compare/v2.2.0...v2.3.0) (2026-11-27)
+
+
+### Features
+
+* describe what each MCP tool returns and when to use it ([#126](https://github.com/udondan/duolingo/issues/126)) ([a00d6ff](https://github.com/udondan/duolingo/commit/a00d6ff7a1d3dec9df62469023a347fcbfe5cf35))
+
 ## [2.2.0](https://github.com/udondan/duolingo/compare/v2.1.1...v2.2.0) (2026-11-27)
 
 
