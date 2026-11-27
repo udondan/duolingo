@@ -158,6 +158,10 @@ container, so pass the credentials as environment variables.
 
 ### MCP Installation
 
+The server is listed in the
+[MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.udondan/duolingo)
+as `io.github.udondan/duolingo`.
+
 **Option A — run directly with npx (no install needed):**
 
 ```bash

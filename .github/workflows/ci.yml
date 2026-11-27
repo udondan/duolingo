@@ -47,6 +47,7 @@ jobs:
       pull-requests: read # paths-filter lists the PR's files via the API
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      mcp-registry: ${{ steps.filter.outputs.mcp-registry }}
     steps:
       - name: Check turn
         if: needs.boarding-gate.result == 'failure' || needs.boarding-gate.result == 'cancelled'
@@ -68,6 +69,9 @@ jobs:
               - Dockerfile
               - .dockerignore
               - docker-mcp.yml
+              - .github/workflows/ci.yml
+            mcp-registry:
+              - server.json
               - .github/workflows/ci.yml
 
   ci:
@@ -241,6 +245,51 @@ jobs:
           docker mcp gateway run --profile ci --dry-run --verbose 2>&1 | tee gateway.log
           grep -E "duolingo: \([1-9][0-9]* tools\)" gateway.log
 
+  # Checks server.json, which releases publish to the MCP Registry, with the
+  # registry's own validation. Runs only if server.json changed.
+  mcp-registry:
+    name: MCP Registry
+    needs: [boarding-gate, changes]
+    # Fail instead of skip if boarding-gate failed, see the ci job.
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.result == 'success' && needs.changes.outputs.mcp-registry == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.16
+    steps:
+      - name: Check turn
+        if: needs.boarding-gate.result == 'failure' || needs.boarding-gate.result == 'cancelled'
+        run: exit 1
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # A fixed release, verified against its Sigstore bundle.
+      - name: Download mcp-publisher
+        run: |
+          set -euo pipefail
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          archive="mcp-publisher_${os}_${arch}.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+
+      - name: Validate server.json
+        run: ./mcp-publisher validate server.json
+
   # Code smells (complexity, duplication, nesting) via Qlty. Git-aware: only
   # smells introduced by the PR compared to main fail the job.
   qlty:
@@ -287,7 +336,7 @@ jobs:
 
   # The only test check the ruleset requires, whatever jobs are added later.
   required:
-    needs: [boarding-gate, changes, ci, coverage, actions, docker, qlty]
+    needs: [boarding-gate, changes, ci, coverage, actions, docker, mcp-registry, qlty]
     if: always()
     runs-on: ubuntu-latest
     steps:
