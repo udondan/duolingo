@@ -20,6 +20,7 @@ import {
   normalizeTtsBaseUrl,
   type VoiceUrlDictionary,
 } from './tts.js';
+import { findCourse, isSameCourse } from './courses.js';
 import type {
   DuolingoCourse,
   DuolingoCurrentCourse,
@@ -108,10 +109,7 @@ export class DuolingoClient {
    */
   invalidateCache(username?: string): void {
     if (username) {
-      const name = username.toLowerCase();
-      for (const key of this.userDataCache.keys()) {
-        if (key.toLowerCase() === name) this.userDataCache.delete(key);
-      }
+      deleteUsername(this.userDataCache, username);
     } else {
       this.userDataCache.clear();
     }
@@ -578,10 +576,7 @@ export class DuolingoClient {
     this.userDataV2Cache.delete(userId);
     // Duolingo answers some requests it does not handle with the web app's
     // HTML page, so only a reply that names the new course counts.
-    if (
-      resp.learningLanguage !== course.learningLanguage ||
-      resp.fromLanguage !== course.fromLanguage
-    ) {
+    if (!isSameCourse(resp, course)) {
       throw new DuolingoClientError(
         `Duolingo did not confirm the switch to '${langAbbr}'.`,
       );
@@ -632,33 +627,12 @@ export class DuolingoClient {
 }
 
 /** The one language course of a language (and source language). */
-function findCourse(
-  courses: DuolingoCourse[],
-  langAbbr: string,
-  fromLanguage?: string,
-): DuolingoCourse {
-  const wanted = langAbbr === 'zs' ? 'zh' : langAbbr;
-  const matches = courses.filter(
-    (c) =>
-      c.subject === 'language' &&
-      c.learningLanguage === wanted &&
-      (fromLanguage === undefined || c.fromLanguage === fromLanguage),
-  );
-  const course = matches[0];
-  if (course === undefined) {
-    const from = fromLanguage === undefined ? '' : ` from '${fromLanguage}'`;
-    throw new DuolingoNotFoundError(
-      `No course for '${langAbbr}'${from} found. ` +
-        'Only courses you are enrolled in can be switched to.',
-    );
+/** Delete every key of the map that spells the username in any case. */
+function deleteUsername(cache: Map<string, unknown>, username: string): void {
+  const name = username.toLowerCase();
+  for (const key of cache.keys()) {
+    if (key.toLowerCase() === name) cache.delete(key);
   }
-  if (matches.length > 1) {
-    const from = matches.map((c) => `'${c.fromLanguage}'`).join(', ');
-    throw new DuolingoClientError(
-      `You learn '${langAbbr}' from ${from}. Say which one to switch to.`,
-    );
-  }
-  return course;
 }
 
 // ---------------------------------------------------------------------------
