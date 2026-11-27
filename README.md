@@ -3,10 +3,11 @@
 [![npm](https://img.shields.io/npm/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
 [![Docker](https://img.shields.io/docker/v/udondan/duolingo?sort=semver&label=docker)](https://hub.docker.com/r/udondan/duolingo)
 [![Node.js](https://img.shields.io/node/v/@udondan/duolingo)](https://www.npmjs.com/package/@udondan/duolingo)
+[![udondan/duolingo MCP server](https://glama.ai/mcp/servers/udondan/duolingo/badges/score.svg)](https://glama.ai/mcp/servers/udondan/duolingo)
 [![CI](https://github.com/udondan/duolingo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/udondan/duolingo/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/udondan/duolingo/graph/badge.svg)](https://codecov.io/gh/udondan/duolingo)
 [![Maintainability](https://qlty.sh/gh/udondan/projects/duolingo/maintainability.svg)](https://qlty.sh/gh/udondan/projects/duolingo)
-[![License](https://img.shields.io/github/license/udondan/duolingo)](LICENSE)
+[![License](https://img.shields.io/github/license/udondan/duolingo)](https://github.com/udondan/duolingo/blob/main/LICENSE)
 
 > [!NOTE]
 > Unofficial community project. Not affiliated with, endorsed or authorized by Duolingo.
