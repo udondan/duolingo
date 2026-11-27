@@ -110,6 +110,7 @@ duolingo leaderboard --unit month
 | `xp`                                                | XP earned and lessons completed today                  |
 | `languages [-u name] [-a]`                          | Languages being learned (`-a` for abbreviations)       |
 | `courses [-u name]`                                 | All courses, including Math, Chess and Music           |
+| `switch-course <abbr> [--from abbr]`                | Make another language course the active one            |
 | `friends`                                           | Users the authenticated user follows                   |
 | `calendar [-u name]`                                | Recent activity of the current course                  |
 | `leaderboard [--unit week\|month]`                  | Friends ranked by XP                                   |
@@ -301,7 +302,8 @@ without starting a client. The output should end with `duolingo: (N tools)`.
 
 ### Available Tools
 
-All tools are **read-only** — the server never modifies your Duolingo account.
+All tools are **read-only** except `duolingo_switch_course`, which changes the
+active course of your account.
 
 #### Account
 
@@ -313,6 +315,7 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 | `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today                            |
 | `duolingo_get_languages`         | Languages being learned (full names or abbreviations)                        |
 | `duolingo_get_courses`           | All courses including Math, Chess, and Music with XP per course              |
+| `duolingo_switch_course`         | Make another of your language courses the active one (changes the account)   |
 | `duolingo_get_friends`           | Users the authenticated user follows, with total XP                          |
 | `duolingo_get_calendar`          | Recent activity calendar for the current course (~last 2 weeks)              |
 | `duolingo_get_leaderboard`       | Authenticated user's friends sorted by XP for week or month                  |
@@ -339,8 +342,11 @@ All tools are **read-only** — the server never modifies your Duolingo account.
 Courses on the learning path no longer fill the legacy skill tree. For the
 authenticated user's current course, the topic, skill and word tools read it
 from the current API instead: there, a topic is mastered once all its levels
-(crowns) are finished, and words come from the Words page. Other courses
-return no topics, skills or words.
+(crowns) are finished, and words come from the Words page. Duolingo only
+returns this for the active course; for your other courses the tools say so,
+and `duolingo_switch_course` makes one of them active. Switching changes the
+active course in the Duolingo apps too, so the tool is only meant to be used
+when you ask for it.
 
 #### Utilities
 
@@ -436,6 +442,14 @@ const musicCourses = v2.courses.filter((c) => c.subject === 'music');
 
 Each course has: `id`, `subject`, `topic`, `xp`, `fromLanguage`.
 Language courses also have: `learningLanguage`, `title`, `authorId`.
+
+```typescript
+// Make another language course the active one. This changes the account:
+// the Duolingo apps continue with that course. Pass the source language
+// when you learn the language from more than one.
+const course = await client.switchCourse('es'); // DuolingoCourse
+await client.switchCourse('fr', 'de');
+```
 
 #### Daily XP Progress
 
@@ -585,6 +599,7 @@ src/
 | ------------------------------------------ | ----------- | --------------------------------------------- |
 | `/users/<username>`                        | Legacy      | User profile, language data, skills, calendar |
 | `/2023-05-23/users/{id}`                   | Current     | Courses (all subjects), streak, health, gems  |
+| `PATCH /2023-05-23/users/{id}`             | Current     | Switching the active course                   |
 | `/2023-05-23/friends/users/{id}/following` | Current     | Friends, leaderboard                          |
 | `/2023-05-23/shop-items`                   | Current     | Shop catalogue                                |
 | `/users/{id}/streak-goal-current`          | Current     | Streak goals                                  |

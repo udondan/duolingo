@@ -19,6 +19,7 @@ import {
   healthView,
   languagesView,
   shopItemsView,
+  switchCourseView,
 } from '../views/account.js';
 import { settingsView, userInfoView } from '../views/profile.js';
 import {
@@ -73,7 +74,8 @@ export function buildProgram(options: CliOptions = {}): Command {
   program
     .name('duolingo')
     .description(
-      'Read your Duolingo data: profile, streak, XP, courses, topics, words and more.\n' +
+      'Read your Duolingo data: profile, streak, XP, courses, topics, words and more,\n' +
+        'and switch your active course.\n' +
         'Credentials: DUOLINGO_USERNAME and DUOLINGO_JWT, from the environment or\n' +
         '~/.config/duolingo/config (KEY=VALUE, mode 0600).',
     )
@@ -145,6 +147,19 @@ export function buildProgram(options: CliOptions = {}): Command {
     .description('All courses, including Math, Chess and Music')
     .addOption(usernameOption())
     .action((opts: UserOpts) => show(() => coursesView(opts)));
+
+  program
+    .command('switch-course <abbr>')
+    .description(
+      "Make another of your language courses the active one (e.g. 'es'); " +
+        'the Duolingo apps switch too',
+    )
+    .option('--from <abbr>', "language the course is taught in (e.g. 'en')")
+    .action((abbr: string, opts: { from?: string }) =>
+      show(() =>
+        switchCourseView({ language_abbr: abbr, from_language: opts.from }),
+      ),
+    );
 
   program
     .command('friends')

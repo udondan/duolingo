@@ -8,6 +8,7 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import {
   DuolingoAuthError,
+  DuolingoClientError,
   DuolingoNotFoundError,
   httpStatus,
   JWT_HINT,
@@ -20,6 +21,7 @@ import {
   type VoiceUrlDictionary,
 } from './tts.js';
 import type {
+  DuolingoCourse,
   DuolingoCurrentCourse,
   DuolingoCurrentCourseResponse,
   DuolingoLearnedLexeme,
@@ -535,6 +537,51 @@ export class DuolingoClient {
     return words;
   }
 
+  /**
+   * Switch the authenticated user's active course to one they are enrolled
+   * in, like choosing another course in the Duolingo app. This changes the
+   * account: the apps and the website continue with the new course.
+   *
+   * Duolingo only returns the skills and words of the active course, so this
+   * is how the other courses become readable. `fromLanguage` picks the course
+   * when the user learns the language from more than one language. Accepts
+   * the legacy code 'zs' for Chinese as well as 'zh'.
+   *
+   * Returns the course that is now active.
+   */
+  async switchCourse(
+    langAbbr: string,
+    fromLanguage?: string,
+  ): Promise<DuolingoCourse> {
+    const userId = await this.getAuthenticatedUserId();
+    const course = findCourse(
+      (await this.getUserDataV2(userId)).courses,
+      langAbbr,
+      fromLanguage,
+    );
+
+    const fields = encodeURIComponent('fromLanguage,learningLanguage');
+    const resp = await this.makePatchRequest<Partial<DuolingoCourse>>(
+      `${BASE_URL}/2023-05-23/users/${userId}?fields=${fields}`,
+      {
+        signal: null,
+        currentCourseId: course.id,
+        fromLanguage: course.fromLanguage,
+      },
+    );
+    // Everything cached for the user so far belongs to the previous course.
+    this.invalidateCache(this.username);
+    this.userDataV2Cache.delete(userId);
+    // Duolingo answers some requests it does not handle with the web app's
+    // HTML page, so only a reply that names the new course counts.
+    if (resp.learningLanguage !== course.learningLanguage) {
+      throw new DuolingoClientError(
+        `Duolingo did not confirm the switch to '${langAbbr}'.`,
+      );
+    }
+    return course;
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -558,6 +605,15 @@ export class DuolingoClient {
     }
   }
 
+  private async makePatchRequest<T>(url: string, body: unknown): Promise<T> {
+    try {
+      const resp = await this.http.patch<T>(url, body);
+      return resp.data;
+    } catch (err) {
+      throw toRequestError(err, url);
+    }
+  }
+
   private async makeRequest<T>(url: string): Promise<T> {
     try {
       const resp = await this.http.get<T>(url);
@@ -566,6 +622,36 @@ export class DuolingoClient {
       throw toRequestError(err, url);
     }
   }
+}
+
+/** The one language course of a language (and source language). */
+function findCourse(
+  courses: DuolingoCourse[],
+  langAbbr: string,
+  fromLanguage?: string,
+): DuolingoCourse {
+  const wanted = langAbbr === 'zs' ? 'zh' : langAbbr;
+  const matches = courses.filter(
+    (c) =>
+      c.subject === 'language' &&
+      c.learningLanguage === wanted &&
+      (fromLanguage === undefined || c.fromLanguage === fromLanguage),
+  );
+  const course = matches[0];
+  if (course === undefined) {
+    const from = fromLanguage === undefined ? '' : ` from '${fromLanguage}'`;
+    throw new DuolingoNotFoundError(
+      `No course for '${langAbbr}'${from} found. ` +
+        'Only courses you are enrolled in can be switched to.',
+    );
+  }
+  if (matches.length > 1) {
+    const from = matches.map((c) => `'${c.fromLanguage}'`).join(', ');
+    throw new DuolingoClientError(
+      `You learn '${langAbbr}' from ${from}. Say which one to switch to.`,
+    );
+  }
+  return course;
 }
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import { getClient, type DuolingoClient } from '../client/duolingo.js';
 import type { DuolingoLanguageData, DuolingoSkill } from '../client/types.js';
 import {
   languageData,
+  missingLanguage,
   pathCourseWords,
   pathSkillLevel,
   pathSkillsLearned,
@@ -69,7 +70,10 @@ export async function languageProgressView(opts: {
   const client = getClient();
   const langData = languageData(await client.getUserData(), language_abbr);
   if (!langData) {
-    return notFound(
+    return missingLanguage(
+      client,
+      language_abbr,
+      undefined,
       `Language '${language_abbr}' not found. Make sure you are learning this language.`,
     );
   }
@@ -140,7 +144,10 @@ async function loadLanguage(
   const userData = await client.getUserData(opts.username);
   const langData = languageData(userData, opts.language_abbr);
   if (!langData) {
-    return notFound(
+    return missingLanguage(
+      client,
+      opts.language_abbr,
+      opts.username,
       `Language '${opts.language_abbr}' not found. Make sure the user is learning this language.`,
     );
   }

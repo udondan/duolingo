@@ -94,6 +94,7 @@ describe('Package exports: runtime values', () => {
         'getVoiceUrlDictionary',
         'getCurrentCourse',
         'getLearnedLexemes',
+        'switchCourse',
         'invalidateCache',
         'isAuthenticatedUser',
       ];

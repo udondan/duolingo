@@ -8,7 +8,10 @@ import type {
   DuolingoFriendUser,
   DuolingoUserDataV2,
 } from '../../src/client/types.js';
-import { DuolingoAuthError } from '../../src/client/errors.js';
+import {
+  DuolingoAuthError,
+  DuolingoNotFoundError,
+} from '../../src/client/errors.js';
 import { callTool } from '../helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -610,6 +613,63 @@ describe('Account Tools', () => {
     it('looks up user ID when username is provided', async () => {
       await callTool(server, 'duolingo_get_courses', { username: 'otheruser' });
       expect(mockClient.getUserIdByUsername).toHaveBeenCalledWith('otheruser');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // duolingo_switch_course
+  // -------------------------------------------------------------------------
+  describe('duolingo_switch_course', () => {
+    const SPANISH = {
+      id: 'DUOLINGO_ES_EN',
+      subject: 'language',
+      learningLanguage: 'es',
+      fromLanguage: 'en',
+      title: 'Spanish',
+    };
+
+    it('switches the course and confirms it', async () => {
+      mockClient.switchCourse = vi.fn().mockResolvedValue(SPANISH);
+      const result = await callTool(server, 'duolingo_switch_course', {
+        language_abbr: 'es',
+        from_language: 'en',
+      });
+      expect(result).toBe("Switched the active course to Spanish (from 'en').");
+      expect(mockClient.switchCourse).toHaveBeenCalledWith('es', 'en');
+    });
+
+    it('returns the course as JSON', async () => {
+      mockClient.switchCourse = vi
+        .fn()
+        .mockResolvedValue({ ...SPANISH, title: undefined });
+      const result = await callTool(server, 'duolingo_switch_course', {
+        language_abbr: 'es',
+        response_format: 'json',
+      });
+      expect(JSON.parse(result)).toMatchObject({ id: 'DUOLINGO_ES_EN' });
+      expect(mockClient.switchCourse).toHaveBeenCalledWith('es', undefined);
+    });
+
+    it('names the language code when the course has no title', async () => {
+      mockClient.switchCourse = vi
+        .fn()
+        .mockResolvedValue({ ...SPANISH, title: undefined });
+      const result = await callTool(server, 'duolingo_switch_course', {
+        language_abbr: 'es',
+      });
+      expect(result).toBe("Switched the active course to es (from 'en').");
+    });
+
+    it('reports errors', async () => {
+      mockClient.switchCourse = vi
+        .fn()
+        .mockRejectedValue(
+          new DuolingoNotFoundError("No course for 'xx' found."),
+        );
+      const result = await callTool(server, 'duolingo_switch_course', {
+        language_abbr: 'xx',
+      });
+      expect(result).toBe("Error: No course for 'xx' found.");
     });
   });
 
