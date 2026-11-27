@@ -5,6 +5,13 @@
 
 import { getClient, type DuolingoClient } from '../client/duolingo.js';
 import type { DuolingoLanguageData, DuolingoSkill } from '../client/types.js';
+import {
+  languageData,
+  pathCourseWords,
+  pathSkillLevel,
+  pathSkillsLearned,
+  withPathSkills,
+} from './path-course.js';
 import { notFound, textView, type View } from './view.js';
 
 export async function languageDetailsView(opts: {
@@ -59,13 +66,17 @@ export async function languageProgressView(opts: {
   language_abbr: string;
 }): Promise<View> {
   const { language_abbr } = opts;
-  const userData = await getClient().getUserData();
-  const langData = userData.language_data?.[language_abbr];
+  const client = getClient();
+  const langData = languageData(await client.getUserData(), language_abbr);
   if (!langData) {
     return notFound(
       `Language '${language_abbr}' not found. Make sure you are learning this language.`,
     );
   }
+  // Path courses report 0 here; count the skills of the current course.
+  const numSkillsLearned =
+    langData.num_skills_learned ||
+    (await pathSkillsLearned(client, language_abbr));
 
   const progress = {
     language: langData.language,
@@ -80,7 +91,7 @@ export async function languageProgressView(opts: {
     // points_rank is absent in the current API response
     points_rank: langData.points_rank,
     streak: langData.streak,
-    num_skills_learned: langData.num_skills_learned,
+    num_skills_learned: numSkillsLearned,
     fluency_score: langData.fluency_score,
   };
 
@@ -117,18 +128,23 @@ export interface LanguageQuery {
 /**
  * Load the language data of a user, or a not-found view when the user does
  * not learn the language.
+ *
+ * Courses on the learning path leave the legacy skill tree empty. For the
+ * authenticated user's current course, the skills are read from the current
+ * API instead.
  */
 async function loadLanguage(
   opts: LanguageQuery,
 ): Promise<DuolingoLanguageData | View> {
-  const userData = await getClient().getUserData(opts.username);
-  const langData = userData.language_data?.[opts.language_abbr];
+  const client = getClient();
+  const userData = await client.getUserData(opts.username);
+  const langData = languageData(userData, opts.language_abbr);
   if (!langData) {
     return notFound(
       `Language '${opts.language_abbr}' not found. Make sure the user is learning this language.`,
     );
   }
-  return langData;
+  return withPathSkills(client, langData, opts);
 }
 
 function isView(value: DuolingoLanguageData | View): value is View {
@@ -181,20 +197,26 @@ export function reviewableTopicsView(opts: LanguageQuery): Promise<View> {
   );
 }
 
-export async function knownWordsView(opts: LanguageQuery): Promise<View> {
-  const langData = await loadLanguage(opts);
-  if (isView(langData)) return langData;
+/** The words of the learned skills of the legacy skill tree. */
+function legacyWords(langData: DuolingoLanguageData | View): string[] {
+  if (isView(langData)) return [];
+  return langData.skills.filter((s) => s.learned).flatMap((s) => s.words);
+}
 
-  const wordSet = new Set<string>();
-  for (const skill of langData.skills) {
-    if (skill.learned) {
-      for (const word of skill.words) {
-        wordSet.add(word);
-      }
-    }
-  }
-  const words = [...wordSet].sort();
+export async function knownWordsView(opts: LanguageQuery): Promise<View> {
   const abbr = opts.language_abbr;
+  const langData = await loadLanguage(opts);
+
+  // Courses on the learning path have an empty legacy skill tree. For the
+  // authenticated user, read the words from learned-lexemes instead.
+  const legacy = legacyWords(langData);
+  const pathWords =
+    legacy.length === 0
+      ? await pathCourseWords(getClient(), abbr, opts.username)
+      : undefined;
+  if (isView(langData) && !pathWords) return langData;
+
+  const words = [...new Set(pathWords ?? legacy)].sort();
 
   return {
     data: words,
@@ -232,6 +254,11 @@ export async function learnedSkillsView(opts: LanguageQuery): Promise<View> {
       }
       const lines = [`# Learned Skills (${abbr.toUpperCase()})`, ''];
       for (const skill of learnedSkills) {
+        const level = pathSkillLevel(skill);
+        if (level) {
+          lines.push(`- **${skill.title}** — Level: ${level}`);
+          continue;
+        }
         const strengthPct = Math.round(skill.strength * 100);
         lines.push(
           `- **${skill.title}** — Strength: ${strengthPct}% | Progress: ${Math.round(skill.progress_percent)}%`,

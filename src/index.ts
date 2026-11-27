@@ -34,6 +34,9 @@ export type {
 
   // Courses (language + math/chess/music)
   DuolingoCourse,
+  DuolingoCurrentCourse,
+  DuolingoCurrentCourseSkill,
+  DuolingoLearnedLexeme,
 
   // Friends / social
   DuolingoFriendUser,

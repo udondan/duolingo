@@ -697,6 +697,217 @@ describe('DuolingoClient', () => {
   });
 
   // -------------------------------------------------------------------------
+  // getLearnedLexemes
+  // -------------------------------------------------------------------------
+  describe('getLearnedLexemes', () => {
+    const COURSE = {
+      currentCourse: {
+        learningLanguage: 'zh',
+        fromLanguage: 'en',
+        skills: [
+          [{ id: 'food', finishedLevels: 2, finishedLessons: 3 }],
+          [{ id: 'locked', finishedLevels: 0, finishedLessons: 0 }],
+        ],
+      },
+    };
+
+    function makeLexemeClient(lexemes: unknown): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          ['/learned-lexemes', { status: 200, data: lexemes }],
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/users/12345?fields=', { status: 200, data: COURSE }],
+        ]),
+      );
+    }
+
+    it('returns the words of the current course', async () => {
+      const learnedLexemes = [{ text: '辣', translations: ['spicy'] }];
+      const client = makeLexemeClient({
+        learnedLexemes,
+        pagination: { nextStartIndex: null },
+      });
+      expect(await client.getLearnedLexemes('zh')).toEqual(learnedLexemes);
+      expect(httpMock(client).post.mock.calls[0]![0]).toContain(
+        '/2017-06-30/users/12345/courses/zh/en/learned-lexemes',
+      );
+      expect(postBody(client)).toEqual({
+        lastTotalLexemeCount: 0,
+        progressedSkills: [
+          { finishedLevels: 2, finishedSessions: 3, skillId: { id: 'food' } },
+        ],
+      });
+    });
+
+    it('accepts the legacy code zs for Chinese', async () => {
+      const client = makeLexemeClient({ learnedLexemes: [] });
+      expect(await client.getLearnedLexemes('zs')).toEqual([]);
+    });
+
+    it('returns null for a language that is not the current course', async () => {
+      const client = makeLexemeClient({ learnedLexemes: [] });
+      expect(await client.getLearnedLexemes('es')).toBeNull();
+      expect(httpMock(client).post).not.toHaveBeenCalled();
+    });
+
+    it('getCurrentCourse flattens the skills and caches the course', async () => {
+      const client = makeLexemeClient({});
+      const course = await client.getCurrentCourse('zh');
+      expect(course?.skills.map((s) => s.id)).toEqual(['food', 'locked']);
+      expect(await client.getCurrentCourse('es')).toBeNull();
+      const courseCalls = httpMock(client).get.mock.calls.filter(
+        (call: unknown[]) => String(call[0]).includes('?fields='),
+      );
+      expect(courseCalls).toHaveLength(1);
+    });
+
+    it('follows pagination', async () => {
+      const client = makeLexemeClient({});
+      httpMock(client)
+        .post.mockResolvedValueOnce({
+          data: {
+            learnedLexemes: [{ text: '好吃' }],
+            pagination: { nextStartIndex: 1 },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: { learnedLexemes: [{ text: '辣' }], pagination: {} },
+        });
+      expect(await client.getLearnedLexemes('zh')).toEqual([
+        { text: '好吃' },
+        { text: '辣' },
+      ]);
+      expect(httpMock(client).post.mock.calls[1]![0]).toContain('startIndex=1');
+    });
+
+    it('stops when the start index does not move forward', async () => {
+      const client = makeLexemeClient({
+        learnedLexemes: [{ text: '辣' }],
+        pagination: { nextStartIndex: 0 },
+      });
+      expect(await client.getLearnedLexemes('zh')).toEqual([{ text: '辣' }]);
+      expect(httpMock(client).post).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops on an empty page', async () => {
+      const client = makeLexemeClient({ pagination: { nextStartIndex: 500 } });
+      expect(await client.getLearnedLexemes('zh')).toEqual([]);
+      expect(httpMock(client).post).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends skills with only finished lessons and fills in missing counts', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/learned-lexemes', { status: 200, data: {} }],
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          [
+            '/2017-06-30/users/12345?fields=',
+            {
+              status: 200,
+              data: {
+                currentCourse: {
+                  learningLanguage: 'fr',
+                  skills: [
+                    [
+                      { id: 'lessons', finishedLessons: 2 },
+                      { id: 'levels', finishedLevels: 1 },
+                      { id: 'none' },
+                    ],
+                  ],
+                },
+              },
+            },
+          ],
+        ]),
+      );
+      expect(await client.getLearnedLexemes('fr')).toEqual([]);
+      expect(httpMock(client).post.mock.calls[0]![0]).toContain(
+        '/courses/fr/en/learned-lexemes',
+      );
+      expect(postBody(client)).toEqual({
+        lastTotalLexemeCount: 0,
+        progressedSkills: [
+          {
+            finishedLevels: 0,
+            finishedSessions: 2,
+            skillId: { id: 'lessons' },
+          },
+          { finishedLevels: 1, finishedSessions: 0, skillId: { id: 'levels' } },
+        ],
+      });
+    });
+
+    it('throws a request error when the request fails', async () => {
+      const client = makeLexemeClient({});
+      httpMock(client).post.mockRejectedValueOnce(
+        Object.assign(new Error('HTTP 500'), {
+          isAxiosError: true,
+          response: { status: 500, data: {} },
+        }),
+      );
+      await expect(client.getLearnedLexemes('zh')).rejects.toThrow();
+    });
+
+    it('getCurrentCourse returns null without a current course', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2017-06-30/users/12345?fields=', { status: 200, data: {} }],
+        ]),
+      );
+      expect(await client.getCurrentCourse('zh')).toBeNull();
+    });
+
+    it('getCurrentCourse handles a course without skills', async () => {
+      const client = makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          [
+            '/2017-06-30/users/12345?fields=',
+            {
+              status: 200,
+              data: { currentCourse: { learningLanguage: 'zh' } },
+            },
+          ],
+        ]),
+      );
+      expect(await client.getCurrentCourse('zs')).toEqual({
+        learningLanguage: 'zh',
+        fromLanguage: 'en',
+        skills: [],
+      });
+    });
+
+    it('getCurrentCourse tries again after a failed request', async () => {
+      const client = makeLexemeClient({});
+      await client.getUserData(); // cache the user ID
+      httpMock(client).get.mockRejectedValueOnce(new Error('Network error'));
+      await expect(client.getCurrentCourse('zh')).rejects.toThrow();
+      expect((await client.getCurrentCourse('zh'))?.learningLanguage).toBe(
+        'zh',
+      );
+    });
+
+    it('invalidateCache() drops the cached course', async () => {
+      const client = makeLexemeClient({});
+      const courseCalls = (): number =>
+        httpMock(client).get.mock.calls.filter((call: unknown[]) =>
+          String(call[0]).includes('?fields='),
+        ).length;
+      await client.getCurrentCourse('zh');
+      client.invalidateCache('someone-else');
+      await client.getCurrentCourse('zh');
+      expect(courseCalls()).toBe(1);
+      client.invalidateCache('TestUser');
+      await client.getCurrentCourse('zh');
+      expect(courseCalls()).toBe(2);
+      client.invalidateCache();
+      await client.getCurrentCourse('zh');
+      expect(courseCalls()).toBe(3);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // getTtsBaseUrl / buildAudioUrl
   // -------------------------------------------------------------------------
   describe('buildAudioUrl', () => {

@@ -26,12 +26,15 @@ import { friendsView, leaderboardView } from '../../src/views/social.js';
 import {
   audioUrlView,
   computeDependencyOrder,
+  goldenTopicsView,
   knownTopicsView,
   knownWordsView,
   languageDetailsView,
   languageProgressView,
   languageVoicesView,
   learnedSkillsView,
+  reviewableTopicsView,
+  unknownTopicsView,
 } from '../../src/views/language.js';
 import {
   abbreviationOfView,
@@ -46,6 +49,9 @@ function mockClient(methods: Record<string, unknown>): void {
       typeof value === 'function' ? value : vi.fn().mockResolvedValue(value),
     ]),
   );
+  // The authenticated user of the mock client is 'testuser'.
+  client.isAuthenticatedUser ??= (username?: string) =>
+    username === undefined || username === 'testuser';
   vi.spyOn(duolingoModule, 'getClient').mockReturnValue(
     client as unknown as DuolingoClient,
   );
@@ -557,7 +563,7 @@ describe('language views', () => {
   });
 
   it('topic, word and skill views without the language', async () => {
-    mockClient({ getUserData: {} });
+    mockClient({ getUserData: {}, getLearnedLexemes: null });
     for (const view of [knownTopicsView, knownWordsView, learnedSkillsView]) {
       const result = await view({ language_abbr: 'xx' });
       expect(result.data).toBeUndefined();
@@ -572,6 +578,7 @@ describe('language views', () => {
           fr: { skills: [skill({ learned: false, words: ['non'] })] },
         },
       },
+      getLearnedLexemes: [],
     });
     const opts = { language_abbr: 'fr' };
     expect((await knownTopicsView(opts)).markdown()).toBe(
@@ -583,6 +590,211 @@ describe('language views', () => {
     expect((await learnedSkillsView(opts)).markdown()).toBe(
       "No learned skills found for language 'fr'.",
     );
+  });
+
+  it('knownWordsView falls back to learned lexemes for path courses', async () => {
+    const getLearnedLexemes = vi
+      .fn()
+      .mockResolvedValue([{ text: '辣' }, { text: '好吃' }, { text: '辣' }]);
+    mockClient({
+      getUserData: { language_data: { zs: { skills: [] } } },
+      getCurrentCourse: null,
+      getLearnedLexemes,
+    });
+    const result = await knownWordsView({ language_abbr: 'zh' });
+    expect(getLearnedLexemes).toHaveBeenCalledWith('zh');
+    expect(result.data).toEqual(['好吃', '辣']);
+    expect(result.markdown()).toBe(
+      ['# Known Words (ZH) — 2 words', '', '好吃, 辣'].join('\n'),
+    );
+  });
+
+  it('knownWordsView prefers words from the legacy skill tree', async () => {
+    const getLearnedLexemes = vi.fn();
+    mockClient({
+      getUserData: {
+        language_data: { fr: { skills: [skill({ words: ['oui'] })] } },
+      },
+      getLearnedLexemes,
+    });
+    const result = await knownWordsView({ language_abbr: 'fr' });
+    expect(result.data).toEqual(['oui']);
+    expect(getLearnedLexemes).not.toHaveBeenCalled();
+  });
+
+  it('knownWordsView does not use learned lexemes for other users', async () => {
+    const getLearnedLexemes = vi.fn();
+    mockClient({ getUserData: {}, getLearnedLexemes });
+    const result = await knownWordsView({
+      language_abbr: 'fr',
+      username: 'someone',
+    });
+    expect(result.message).toContain("Language 'fr' not found");
+    expect(getLearnedLexemes).not.toHaveBeenCalled();
+  });
+
+  describe('path courses', () => {
+    const PATH_COURSE = {
+      learningLanguage: 'zh',
+      fromLanguage: 'en',
+      skills: [
+        {
+          id: 'a',
+          name: 'Food',
+          finishedLevels: 2,
+          finishedLessons: 3,
+          levels: 6,
+        },
+        {
+          id: 'b',
+          name: 'Family',
+          finishedLevels: 6,
+          finishedLessons: 0,
+          levels: 6,
+        },
+        { id: 'c', name: 'Travel', finishedLevels: 0, levels: 6 },
+      ],
+    };
+
+    function mockPathCourse(
+      extra: Record<string, unknown> = {},
+    ): ReturnType<typeof vi.fn> {
+      const getCurrentCourse = vi.fn().mockResolvedValue(PATH_COURSE);
+      mockClient({
+        getUserData: {
+          language_data: {
+            zs: {
+              language: 'zs',
+              language_string: 'Chinese (Simplified)',
+              level: 9,
+              level_percent: 24,
+              level_left: 456,
+              points: 1794,
+              streak: 61,
+              num_skills_learned: 0,
+              fluency_score: 0,
+              skills: [],
+            },
+          },
+        },
+        getCurrentCourse,
+        ...extra,
+      });
+      return getCurrentCourse;
+    }
+
+    it('topic views read the skills of the current course', async () => {
+      const getCurrentCourse = mockPathCourse();
+      const opts = { language_abbr: 'zh' };
+      expect((await knownTopicsView(opts)).data).toEqual(['Family', 'Food']);
+      expect((await unknownTopicsView(opts)).data).toEqual(['Travel']);
+      expect((await goldenTopicsView(opts)).data).toEqual(['Family']);
+      expect((await reviewableTopicsView(opts)).data).toEqual(['Food']);
+      expect(getCurrentCourse).toHaveBeenCalledWith('zh');
+    });
+
+    it('learnedSkillsView shows the levels of path skills', async () => {
+      mockPathCourse();
+      expect(
+        (await learnedSkillsView({ language_abbr: 'zh' })).markdown(),
+      ).toBe(
+        [
+          '# Learned Skills (ZH)',
+          '',
+          '- **Food** — Level: 2/6',
+          '- **Family** — Level: 6/6',
+        ].join('\n'),
+      );
+    });
+
+    it('languageProgressView finds zh and counts path skills', async () => {
+      mockPathCourse();
+      const result = await languageProgressView({ language_abbr: 'zh' });
+      expect(result.data).toMatchObject({
+        language: 'zs',
+        level: 9,
+        num_skills_learned: 2,
+      });
+    });
+
+    it('keeps an empty skill tree when the course is not current', async () => {
+      mockClient({
+        getUserData: { language_data: { fr: { skills: [] } } },
+        getCurrentCourse: null,
+      });
+      expect((await knownTopicsView({ language_abbr: 'fr' })).data).toEqual([]);
+    });
+
+    it('fills in missing names and level counts of path skills', async () => {
+      mockClient({
+        getUserData: { language_data: { zs: { skills: [] } } },
+        getCurrentCourse: {
+          learningLanguage: 'zh',
+          fromLanguage: 'en',
+          skills: [{ id: 'nameless' }, { id: 'x', name: 'Started', levels: 0 }],
+        },
+      });
+      const result = await learnedSkillsView({ language_abbr: 'zh' });
+      expect(result.data).toEqual([]);
+      expect((await unknownTopicsView({ language_abbr: 'zh' })).data).toEqual([
+        'Started',
+        'nameless',
+      ]);
+    });
+
+    it('languageProgressView counts no skills without a current course', async () => {
+      mockClient({
+        getUserData: {
+          language_data: { fr: { num_skills_learned: 0, skills: [] } },
+        },
+        getCurrentCourse: null,
+      });
+      const result = await languageProgressView({ language_abbr: 'fr' });
+      expect(result.data).toMatchObject({ num_skills_learned: 0 });
+    });
+
+    it('languageProgressView ignores path skills without levels', async () => {
+      mockClient({
+        getUserData: {
+          language_data: { zs: { num_skills_learned: 0, skills: [] } },
+        },
+        getCurrentCourse: {
+          learningLanguage: 'zh',
+          fromLanguage: 'en',
+          skills: [{ id: 'a' }, { id: 'b', finishedLevels: 1 }],
+        },
+      });
+      const result = await languageProgressView({ language_abbr: 'zh' });
+      expect(result.data).toMatchObject({ num_skills_learned: 1 });
+    });
+
+    it('knownWordsView is empty when the course is not current', async () => {
+      mockClient({
+        getUserData: { language_data: { fr: { skills: [] } } },
+        getCurrentCourse: null,
+        getLearnedLexemes: null,
+      });
+      expect((await knownWordsView({ language_abbr: 'fr' })).data).toEqual([]);
+    });
+
+    it('reads the current course when the own username is given', async () => {
+      const getLearnedLexemes = vi.fn().mockResolvedValue([{ text: '辣' }]);
+      const getCurrentCourse = mockPathCourse({ getLearnedLexemes });
+      const opts = { language_abbr: 'zh', username: 'testuser' };
+      expect((await knownTopicsView(opts)).data).toEqual(['Family', 'Food']);
+      expect((await knownWordsView(opts)).data).toEqual(['辣']);
+      expect(getCurrentCourse).toHaveBeenCalledWith('zh');
+    });
+
+    it('does not read the current course for other users', async () => {
+      const getCurrentCourse = mockPathCourse();
+      const result = await knownTopicsView({
+        language_abbr: 'zh',
+        username: 'someone',
+      });
+      expect(result.data).toEqual([]);
+      expect(getCurrentCourse).not.toHaveBeenCalled();
+    });
   });
 
   it('learnedSkillsView orders skills by dependencies', async () => {

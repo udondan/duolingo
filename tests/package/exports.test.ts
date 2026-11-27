@@ -35,6 +35,9 @@ import type {
   DuolingoSkill,
   DuolingoTrackingProperties,
   DuolingoCourse,
+  DuolingoCurrentCourse,
+  DuolingoCurrentCourseSkill,
+  DuolingoLearnedLexeme,
   DuolingoFriendUser,
   DuolingoFollowingResponse,
   DuolingoFollowersResponse,
@@ -89,7 +92,10 @@ describe('Package exports: runtime values', () => {
         'buildAudioUrl',
         'getGlobalPracticeSession',
         'getVoiceUrlDictionary',
+        'getCurrentCourse',
+        'getLearnedLexemes',
         'invalidateCache',
+        'isAuthenticatedUser',
       ];
       for (const method of expectedMethods) {
         expect(
@@ -286,6 +292,9 @@ describe('Package exports: type shapes (compile-time)', () => {
       | DuolingoSkill
       | DuolingoTrackingProperties
       | DuolingoCourse
+      | DuolingoCurrentCourse
+      | DuolingoCurrentCourseSkill
+      | DuolingoLearnedLexeme
       | DuolingoFriendUser
       | DuolingoFollowingResponse
       | DuolingoFollowersResponse
