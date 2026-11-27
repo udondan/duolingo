@@ -15,8 +15,7 @@ export function registerShopTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language Name from Abbreviation',
       description:
-        'Convert a language abbreviation to its full name. ' +
-        'Only works for languages the given user is currently learning.',
+        "Converts a language abbreviation like 'fr' to the course name, like 'French'. Looks only at the courses of the given user (default: the authenticated user) and fails for languages the user does not learn. For the reverse use duolingo_get_abbreviation_of; for all languages of the user at once duolingo_get_languages. Returns the name as text.",
       inputSchema: {
         language_abbr: z
           .string()
@@ -38,8 +37,7 @@ export function registerShopTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language Abbreviation',
       description:
-        'Convert a full language name to its abbreviation. ' +
-        'Only works for languages the given user is currently learning.',
+        "Converts a language name like 'French' to its abbreviation, like 'fr', which most language tools take as `language_abbr`. Looks only at the courses of the given user (default: the authenticated user) and fails for languages the user does not learn. For the reverse use duolingo_get_language_from_abbr. Returns the abbreviation as text.",
       inputSchema: {
         language_name: z
           .string()

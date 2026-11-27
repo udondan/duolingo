@@ -34,14 +34,18 @@ const LanguageAbbrSchema = z
   .string()
   .min(2)
   .max(5)
-  .describe("Language abbreviation (e.g. 'fr' for French, 'es' for Spanish).");
+  .describe(
+    "Abbreviation of a language the user learns, like 'fr' for French or 'es' for Spanish, as duolingo_get_languages lists them with `abbreviations`.",
+  );
 
 const OptionalLanguageAbbrSchema = z
   .string()
   .min(2)
   .max(5)
   .optional()
-  .describe("Language abbreviation (e.g. 'fr'). Defaults to current language.");
+  .describe(
+    "Abbreviation of the language, like 'fr'. Default: the first course of the authenticated user.",
+  );
 
 /** Tools that take a language and an optional username. */
 const LANGUAGE_QUERY_TOOLS: [
@@ -53,40 +57,37 @@ const LANGUAGE_QUERY_TOOLS: [
   [
     'duolingo_get_known_topics',
     'Get Duolingo Known Topics',
-    'Get the list of learned topic/skill names for a language.',
+    "Lists the names of the topics (skills) the user has learned in one language, sorted alphabetically: names only. Use it for a quick list of what was covered; for the skills with strength and progress use duolingo_get_learned_skills, for the topics not started duolingo_get_unknown_topics, and to split the learned ones into mastered and in need of review duolingo_get_golden_topics and duolingo_get_reviewable_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
     knownTopicsView,
   ],
   [
     'duolingo_get_unknown_topics',
     'Get Duolingo Unknown Topics',
-    'Get the list of not-yet-learned topics/skills for a language.',
+    "Lists the names of the topics (skills) of one language that the user has not learned yet, sorted alphabetically. Use it to see what is still ahead in the course; the learned ones are in duolingo_get_known_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
     unknownTopicsView,
   ],
   [
     'duolingo_get_golden_topics',
     'Get Duolingo Golden (Mastered) Topics',
-    'Get the list of fully mastered ("golden") topics for a language. ' +
-      'A golden topic has a strength of 1.0 (fully reviewed).',
+    "Lists the names of the learned topics (skills) of one language that are fully mastered (golden, strength 1.0, nothing to review), sorted alphabetically. The learned topics that still need review are in duolingo_get_reviewable_topics; together they make up duolingo_get_known_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
     goldenTopicsView,
   ],
   [
     'duolingo_get_reviewable_topics',
     'Get Duolingo Reviewable Topics',
-    'Get the list of learned but not fully mastered topics for a language. ' +
-      'These are topics that have been started but whose strength is below 1.0, meaning they need review.',
+    "Lists the names of the learned topics (skills) of one language whose strength is below 1.0, so practice would refresh them, sorted alphabetically. Use it to suggest what to review; for the strength of each skill use duolingo_get_learned_skills, for the mastered ones duolingo_get_golden_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
     reviewableTopicsView,
   ],
   [
     'duolingo_get_known_words',
     'Get Duolingo Known Words',
-    'Get the set of words a user has learned in a language.',
+    "Lists the words (lexemes) the user has learned in one language, without duplicates and sorted alphabetically; it can be several hundred words. Use it for vocabulary, for example to build practice sentences from known words; for topics use duolingo_get_known_topics. On learning-path courses the words come from the authenticated user's active course: switch with duolingo_switch_course to read another.",
     knownWordsView,
   ],
   [
     'duolingo_get_learned_skills',
     'Get Duolingo Learned Skills',
-    'Get full skill objects for all learned skills, sorted by learning order. ' +
-      'Returns detailed skill data including title, strength, progress, words, and more.',
+    "Returns the learned skills of one language as full objects in the order they were learned: title, strength (0 to 1), progress in percent, words, and more. The most detailed and largest of the topic tools: for names only use duolingo_get_known_topics, for the weak ones duolingo_get_reviewable_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
     learnedSkillsView,
   ],
 ];
@@ -97,8 +98,7 @@ export function registerLanguageTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language Details',
       description:
-        "Get a user's status and details for a specific language. " +
-        'Returns level, points, streak, and learning status for the given language.',
+        "Reads the status of one language for a user, by its full name like 'French': level, points (XP), streak and whether it is the language being learned now. Fails while the active course is not a language course, like Math. Takes the full name; for the abbreviation use duolingo_get_abbreviation_of. For percent to the next level, fluency and skill counts use duolingo_get_language_progress; for all courses at once duolingo_get_courses.",
       inputSchema: {
         language_name: z
           .string()
@@ -121,8 +121,7 @@ export function registerLanguageTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language Progress',
       description:
-        'Get detailed progress metrics for a specific language. ' +
-        'Returns level, percent to next level, points rank, fluency score, skills learned, and more.',
+        "Reads detailed progress of the authenticated user in one language, by abbreviation like 'fr': level, percent and points to the next level, fluency score, number of skills learned out of all, and more. Use it to report how far a course is; for level and streak of another user use duolingo_get_language_details, for which topics are done duolingo_get_known_topics.",
       inputSchema: {
         language_abbr: LanguageAbbrSchema,
         response_format: ResponseFormatSchema,
@@ -156,8 +155,7 @@ export function registerLanguageTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language TTS Voices',
       description:
-        'Get the available text-to-speech (TTS) voices for a language. ' +
-        'Returns a list of voice names.',
+        "Lists the text-to-speech voice names Duolingo has for one language, like 'mathieu'. Reads them from a practice session it requests but never starts or completes, and caches them while the server runs. The language defaults to the first course of the authenticated user. Use the names as `voice` of duolingo_get_audio_url. Empty if Duolingo reports none.",
       inputSchema: {
         language_abbr: OptionalLanguageAbbrSchema,
         response_format: ResponseFormatSchema,
@@ -173,8 +171,7 @@ export function registerLanguageTools(server: McpServer): void {
     {
       title: 'Get Duolingo Word Audio URL',
       description:
-        'Get the URL of a pronunciation audio file for a word. ' +
-        'Returns a CloudFront CDN URL pointing to the TTS audio file.',
+        "Builds the URL of the Duolingo text-to-speech audio of a word or phrase, on Duolingo's CDN, which plays without a login. Does not download the audio or check that it exists. Without `voice` it picks a random voice of duolingo_get_language_voices, so the result varies; with `random` false and no voice, the URL has no voice. The language defaults to the first course of the authenticated user. Returns the URL as text.",
       inputSchema: {
         word: z
           .string()
@@ -187,13 +184,13 @@ export function registerLanguageTools(server: McpServer): void {
           .string()
           .optional()
           .describe(
-            "Specific voice name to use (e.g. 'mathieu'). Defaults to random.",
+            "Voice name from duolingo_get_language_voices, like 'mathieu'. Default: see `random`.",
           ),
         random: z
           .boolean()
           .default(true)
           .describe(
-            "If true, select a random voice. Ignored if 'voice' is specified.",
+            'Without `voice`: true picks a random voice of the language, false builds the URL without a voice. Ignored when `voice` is given.',
           ),
       },
       annotations: { ...READ_ONLY, idempotentHint: false },

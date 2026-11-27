@@ -38,8 +38,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo User Info',
       description:
-        "Get a Duolingo user's profile information. Returns username, full name, bio, location, " +
-        'avatar URL, follower/following counts, learning language, UI language, cohort, admin status, and more.',
+        'Reads the profile of a Duolingo user (default: the authenticated user): username, full name, bio, location, avatar URL, follower and following counts, learning and UI language, cohort, and more. Use it for who the user is; for the streak use duolingo_get_streak_info, for the courses duolingo_get_courses.',
       inputSchema: {
         username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
@@ -55,9 +54,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo User Settings',
       description:
-        "Get the authenticated user's Duolingo account settings. " +
-        'Returns notification preferences and follow/follower relationship flags. ' +
-        'Only works for the authenticated user.',
+        "Reads the account settings of the authenticated user: notification preferences and follow flags. Changes nothing, and takes no username: other users' settings are not visible. For the profile use duolingo_get_user_info.",
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
@@ -71,8 +68,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Streak Info',
       description:
-        "Get a Duolingo user's current streak information. " +
-        'Returns the site-wide streak count, daily XP goal, and whether the streak has been extended today.',
+        "Reads the streak of a user (default: the authenticated user): current streak in days, daily XP goal, and whether the streak was already extended today. Use it to tell whether a lesson is still needed today; for today's XP and lessons use duolingo_get_daily_xp_progress, for the streak goal and its milestones duolingo_get_streak_goal, for the days with activity duolingo_get_calendar.",
       inputSchema: {
         username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
@@ -88,9 +84,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Daily XP Progress',
       description:
-        "Get the authenticated user's XP progress for today. " +
-        'Returns the daily XP goal, total XP earned today, and a list of lessons completed today. ' +
-        'Only works for the authenticated user.',
+        "Reads today's XP of the authenticated user: daily goal, XP earned today, and the lessons completed today. The result changes as the user learns. For the streak use duolingo_get_streak_info; for the last two weeks duolingo_get_calendar.",
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
@@ -104,7 +98,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Learning Languages',
       description:
-        'Get the list of languages a Duolingo user is currently learning.',
+        "Lists the language courses a user (default: the authenticated user) learns, as full names like 'French' or, with `abbreviations`, as codes like 'fr', which most language tools take. Languages only: for all courses, Math, Chess and Music too, with XP use duolingo_get_courses.",
       inputSchema: {
         username: UsernameFieldSchema,
         abbreviations: z
@@ -126,9 +120,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Friends',
       description:
-        'Get the list of Duolingo users that a given user is following (their friends). ' +
-        "Returns each friend's username, display name, and total XP. " +
-        'Only works for the authenticated user.',
+        'Lists the users the authenticated user follows, each with username, display name and total XP. Takes no username. To rank them by XP of this week or month use duolingo_get_leaderboard; for one of them in detail duolingo_get_user_info with their username.',
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
@@ -142,11 +134,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Activity Calendar',
       description:
-        "Get a Duolingo user's recent activity calendar. " +
-        'Returns all recent activity entries, sorted newest first. ' +
-        'The Duolingo API provides roughly the last 2 weeks of activity. ' +
-        'Note: the calendar reflects the currently selected course only ' +
-        '(e.g. Spanish, Math, Chess) — not all courses combined.',
+        'Lists the recent activity of a user (default: the authenticated user), newest first: each entry with time, XP and, where reported, skill and event type, for about the last two weeks, as far as Duolingo keeps them. Covers only the active course (like Spanish, Math or Chess), not all courses. Use it to see on which days the user learned; for today alone use duolingo_get_daily_xp_progress.',
       inputSchema: {
         username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
@@ -162,9 +150,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Leaderboard',
       description:
-        "Get the XP leaderboard for a Duolingo user's friends. " +
-        'Returns the users they follow, sorted by XP for the given time unit (week or month). ' +
-        'Only works for the authenticated user.',
+        'Ranks the users the authenticated user follows by the XP they earned this `unit` (week or month), highest first. Takes no username; the ranking changes as they learn. For the list of friends with total XP use duolingo_get_friends.',
       inputSchema: {
         unit: z
           .enum(['week', 'month'])
@@ -183,9 +169,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Courses',
       description:
-        'Get all courses a Duolingo user is enrolled in, including non-language subjects ' +
-        "like Math, Chess, and Music. Returns each course's subject, title, XP earned, " +
-        'and course ID. Language courses also include the language code.',
+        'Lists all courses a user (default: the authenticated user) is enrolled in, including Math, Chess and Music: subject, title, XP earned and course id, and for language courses the language code and the language it is taught in. Use it for an overview of all courses, or to find the course to pass to duolingo_switch_course; for language names only use duolingo_get_languages.',
       inputSchema: {
         username: UsernameFieldSchema,
         response_format: ResponseFormatSchema,
@@ -201,10 +185,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Switch Duolingo Course',
       description:
-        "Switch the authenticated user's active course to another language course they are enrolled in. " +
-        'Duolingo only returns topics, skills and words of the active course, so switch first to read another course. ' +
-        'This changes the account: the Duolingo apps and website continue with the new course. ' +
-        'Only call this when the user asks to switch courses or agrees to it.',
+        "Switches the authenticated user's active course to another language course they are enrolled in. Duolingo returns topics, skills and words only for the active course, so switch first to read another one with the topic tools. This changes the account: the Duolingo apps and website continue with the new course. Switching back undoes it. Find the courses with duolingo_get_courses. Call it only when the user asks to switch or agrees to it. Returns the new active course.",
       inputSchema: {
         language_abbr: z
           .string()
@@ -235,9 +216,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Shop Items',
       description:
-        'Get the full Duolingo shop catalogue. Returns all purchasable items with ' +
-        'their prices, currency type (gems/lingots), item type, and last-used dates. ' +
-        'This is read-only — it does not purchase anything.',
+        'Lists the Duolingo shop catalogue: each item with name, type, price and currency (gems or lingots), and when the user last used it. Only reads, never buys. For the balance to pay with use duolingo_get_currencies.',
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
@@ -251,9 +230,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Health (Hearts)',
       description:
-        "Get the authenticated user's current hearts/health status. " +
-        'Returns heart count, max hearts, refill eligibility, and time until next heart refill. ' +
-        'Only works for the authenticated user.',
+        'Reads the hearts of the authenticated user: current and maximum hearts, whether a refill is possible, and the time until the next heart. Use it to tell whether the user can start a lesson now; for gems use duolingo_get_currencies.',
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
@@ -267,8 +244,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Currency Balances',
       description:
-        "Get the authenticated user's gem and lingot balances. " +
-        'Only works for the authenticated user.',
+        'Reads the gem and lingot balances of the authenticated user. Takes no username. For what they buy use duolingo_get_shop_items; for hearts duolingo_get_health.',
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
@@ -282,9 +258,7 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Streak Goal',
       description:
-        "Get the authenticated user's current streak goal and upcoming checkpoints. " +
-        'Shows the last completed goal, upcoming milestones, and the next selected goal. ' +
-        'Only works for the authenticated user.',
+        'Reads the streak goal of the authenticated user: the last goal reached, the upcoming milestones (checkpoints in days), and the next goal selected. For the current streak use duolingo_get_streak_info.',
       inputSchema: {
         response_format: ResponseFormatSchema,
       },
