@@ -268,6 +268,7 @@ describe('MCP Server: tool discovery', () => {
       'duolingo_get_streak_info',
       'duolingo_get_unknown_topics',
       'duolingo_get_user_info',
+      'duolingo_switch_course',
     ].sort();
 
     expect(names).toEqual(expectedTools);
@@ -287,13 +288,13 @@ describe('MCP Server: tool discovery', () => {
     }
   });
 
-  it('tools have readOnlyHint = true (no destructive tools)', async () => {
+  it('only the course switch writes, and no tool is destructive', async () => {
     const { tools } = await client.listTools();
     for (const tool of tools) {
       expect(
         tool.annotations?.readOnlyHint,
         `${tool.name} should be read-only`,
-      ).toBe(true);
+      ).toBe(tool.name !== 'duolingo_switch_course');
       expect(
         tool.annotations?.destructiveHint,
         `${tool.name} should not be destructive`,

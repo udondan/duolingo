@@ -68,6 +68,22 @@ export async function coursesView(opts: { username?: string }): Promise<View> {
   };
 }
 
+export async function switchCourseView(opts: {
+  language_abbr: string;
+  from_language?: string;
+}): Promise<View> {
+  const course = await getClient().switchCourse(
+    opts.language_abbr,
+    opts.from_language,
+  );
+  const title = course.title ?? opts.language_abbr;
+  return {
+    data: course,
+    markdown: () =>
+      `Switched the active course to ${title} (from '${course.fromLanguage}').`,
+  };
+}
+
 export async function shopItemsView(): Promise<View> {
   const items = await getClient().getShopItems();
 

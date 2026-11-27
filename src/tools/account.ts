@@ -14,6 +14,7 @@ import {
   healthView,
   languagesView,
   shopItemsView,
+  switchCourseView,
 } from '../views/account.js';
 import { settingsView, userInfoView } from '../views/profile.js';
 import {
@@ -28,6 +29,7 @@ import {
   reply,
   ResponseFormatSchema,
   UsernameFieldSchema,
+  WRITE,
 } from './helpers.js';
 
 export function registerAccountTools(server: McpServer): void {
@@ -192,6 +194,40 @@ export function registerAccountTools(server: McpServer): void {
     },
     ({ username, response_format }) =>
       reply(() => coursesView({ username }), response_format),
+  );
+
+  server.registerTool(
+    'duolingo_switch_course',
+    {
+      title: 'Switch Duolingo Course',
+      description:
+        "Switch the authenticated user's active course to another language course they are enrolled in. " +
+        'Duolingo only returns topics, skills and words of the active course, so switch first to read another course. ' +
+        'This changes the account: the Duolingo apps and website continue with the new course. ' +
+        'Only call this when the user asks to switch courses or agrees to it.',
+      inputSchema: {
+        language_abbr: z
+          .string()
+          .min(2)
+          .max(5)
+          .describe("Language to switch to (e.g. 'es' for Spanish)."),
+        from_language: z
+          .string()
+          .min(2)
+          .max(5)
+          .optional()
+          .describe(
+            "Language the course is taught in (e.g. 'en'). Only needed when the user learns the language from more than one language.",
+          ),
+        response_format: ResponseFormatSchema,
+      },
+      annotations: WRITE,
+    },
+    ({ language_abbr, from_language, response_format }) =>
+      reply(
+        () => switchCourseView({ language_abbr, from_language }),
+        response_format,
+      ),
   );
 
   server.registerTool(

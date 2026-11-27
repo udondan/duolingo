@@ -520,10 +520,29 @@ describe('language views', () => {
   });
 
   it('languageProgressView for an unknown language', async () => {
-    mockClient({ getUserData: {} });
-    expect((await languageProgressView({ language_abbr: 'xx' })).data).toBe(
-      undefined,
-    );
+    mockClient({ getUserData: {}, getUserDataV2: { courses: [] } });
+    const result = await languageProgressView({ language_abbr: 'xx' });
+    expect(result.data).toBe(undefined);
+    expect(result.message).toContain("Language 'xx' not found");
+  });
+
+  it('views say when an enrolled course is not the active one', async () => {
+    const getUserDataV2 = vi.fn().mockResolvedValue({
+      courses: [{ subject: 'language', learningLanguage: 'zh' }],
+    });
+    mockClient({
+      getUserData: { id: 7 },
+      getUserDataV2,
+      getLearnedLexemes: null,
+    });
+    for (const view of [knownTopicsView, knownWordsView, learnedSkillsView]) {
+      const result = await view({ language_abbr: 'zs' });
+      expect(result.data).toBeUndefined();
+      expect(result.message).toContain("'zs' is not your active course");
+    }
+    const progress = await languageProgressView({ language_abbr: 'zh' });
+    expect(progress.message).toContain('duolingo_switch_course');
+    expect(getUserDataV2).toHaveBeenCalledWith(7);
   });
 
   it('languageProgressView markdown with rank and without fluency', async () => {
@@ -563,7 +582,11 @@ describe('language views', () => {
   });
 
   it('topic, word and skill views without the language', async () => {
-    mockClient({ getUserData: {}, getLearnedLexemes: null });
+    mockClient({
+      getUserData: {},
+      getUserDataV2: { courses: [] },
+      getLearnedLexemes: null,
+    });
     for (const view of [knownTopicsView, knownWordsView, learnedSkillsView]) {
       const result = await view({ language_abbr: 'xx' });
       expect(result.data).toBeUndefined();
@@ -717,12 +740,14 @@ describe('language views', () => {
       });
     });
 
-    it('keeps an empty skill tree when the course is not current', async () => {
+    it('says when the course with an empty skill tree is not active', async () => {
       mockClient({
         getUserData: { language_data: { fr: { skills: [] } } },
         getCurrentCourse: null,
       });
-      expect((await knownTopicsView({ language_abbr: 'fr' })).data).toEqual([]);
+      const result = await knownTopicsView({ language_abbr: 'fr' });
+      expect(result.data).toBeUndefined();
+      expect(result.message).toContain("'fr' is not your active course");
     });
 
     it('fills in missing names and level counts of path skills', async () => {
@@ -768,13 +793,14 @@ describe('language views', () => {
       expect(result.data).toMatchObject({ num_skills_learned: 1 });
     });
 
-    it('knownWordsView is empty when the course is not current', async () => {
+    it('knownWordsView says when the course is not active', async () => {
       mockClient({
         getUserData: { language_data: { fr: { skills: [] } } },
         getCurrentCourse: null,
         getLearnedLexemes: null,
       });
-      expect((await knownWordsView({ language_abbr: 'fr' })).data).toEqual([]);
+      const result = await knownWordsView({ language_abbr: 'fr' });
+      expect(result.message).toContain("'fr' is not your active course");
     });
 
     it('reads the current course when the own username is given', async () => {

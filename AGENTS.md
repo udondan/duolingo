@@ -15,7 +15,11 @@ validation, and Axios for HTTP.
   (`src/cli/program.ts`) are thin wrappers around the same views.
 - **Auth:** `DUOLINGO_USERNAME` + `DUOLINGO_JWT` environment variables (the
   CLI also reads `~/.config/duolingo/config`, mode 0600)
-- **Design:** Read-first; all tools are read-only (no writes to Duolingo)
+- **Design:** Read-first; all tools are read-only (no writes to Duolingo),
+  except `duolingo_switch_course`, which changes the active course only when
+  the user asks for it. It uses the `WRITE` annotations
+  (`readOnlyHint: false`); every other tool uses `READ_ONLY`. A new write
+  tool needs the same explicit decision.
 - **Tool naming:** `duolingo_<action>_<resource>` pattern (snake_case)
 - **Server name:** `duolingo_mcp`
 

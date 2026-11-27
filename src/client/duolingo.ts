@@ -8,6 +8,7 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import {
   DuolingoAuthError,
+  DuolingoClientError,
   DuolingoNotFoundError,
   httpStatus,
   JWT_HINT,
@@ -19,7 +20,9 @@ import {
   normalizeTtsBaseUrl,
   type VoiceUrlDictionary,
 } from './tts.js';
+import { findCourse, isSameCourse } from './courses.js';
 import type {
+  DuolingoCourse,
   DuolingoCurrentCourse,
   DuolingoCurrentCourseResponse,
   DuolingoLearnedLexeme,
@@ -102,10 +105,11 @@ export class DuolingoClient {
 
   /**
    * Invalidate the user data cache for a specific username (or all).
+   * Usernames are case-insensitive, so every spelling of it is dropped.
    */
   invalidateCache(username?: string): void {
     if (username) {
-      this.userDataCache.delete(username);
+      deleteUsername(this.userDataCache, username);
     } else {
       this.userDataCache.clear();
     }
@@ -535,6 +539,51 @@ export class DuolingoClient {
     return words;
   }
 
+  /**
+   * Switch the authenticated user's active course to one they are enrolled
+   * in, like choosing another course in the Duolingo app. This changes the
+   * account: the apps and the website continue with the new course.
+   *
+   * Duolingo only returns the skills and words of the active course, so this
+   * is how the other courses become readable. `fromLanguage` picks the course
+   * when the user learns the language from more than one language. Accepts
+   * the legacy code 'zs' for Chinese as well as 'zh'.
+   *
+   * Returns the course that is now active.
+   */
+  async switchCourse(
+    langAbbr: string,
+    fromLanguage?: string,
+  ): Promise<DuolingoCourse> {
+    const userId = await this.getAuthenticatedUserId();
+    const course = findCourse(
+      (await this.getUserDataV2(userId)).courses,
+      langAbbr,
+      fromLanguage,
+    );
+
+    const fields = encodeURIComponent('fromLanguage,learningLanguage');
+    const resp = await this.makePatchRequest<Partial<DuolingoCourse>>(
+      `${BASE_URL}/2023-05-23/users/${userId}?fields=${fields}`,
+      {
+        signal: null,
+        currentCourseId: course.id,
+        fromLanguage: course.fromLanguage,
+      },
+    );
+    // Everything cached for the user so far belongs to the previous course.
+    this.invalidateCache(this.username);
+    this.userDataV2Cache.delete(userId);
+    // Duolingo answers some requests it does not handle with the web app's
+    // HTML page, so only a reply that names the new course counts.
+    if (!isSameCourse(resp, course)) {
+      throw new DuolingoClientError(
+        `Duolingo did not confirm the switch to '${langAbbr}'.`,
+      );
+    }
+    return course;
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -558,6 +607,15 @@ export class DuolingoClient {
     }
   }
 
+  private async makePatchRequest<T>(url: string, body: unknown): Promise<T> {
+    try {
+      const resp = await this.http.patch<T>(url, body);
+      return resp.data;
+    } catch (err) {
+      throw toRequestError(err, url);
+    }
+  }
+
   private async makeRequest<T>(url: string): Promise<T> {
     try {
       const resp = await this.http.get<T>(url);
@@ -565,6 +623,15 @@ export class DuolingoClient {
     } catch (err) {
       throw toRequestError(err, url);
     }
+  }
+}
+
+/** The one language course of a language (and source language). */
+/** Delete every key of the map that spells the username in any case. */
+function deleteUsername(cache: Map<string, unknown>, username: string): void {
+  const name = username.toLowerCase();
+  for (const key of cache.keys()) {
+    if (key.toLowerCase() === name) cache.delete(key);
   }
 }
 

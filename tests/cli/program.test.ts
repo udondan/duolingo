@@ -172,6 +172,7 @@ function mockClient(overrides: Partial<Record<string, unknown>> = {}) {
       unlimitedHeartsAvailable: false,
     }),
     getCurrencies: vi.fn().mockResolvedValue({ gems: 1234, lingots: 10 }),
+    switchCourse: vi.fn().mockResolvedValue(USER_DATA_V2.courses[0]),
     getStreakGoalCurrent: vi
       .fn()
       .mockResolvedValue({ hasActiveGoal: false, streakGoal: null }),
@@ -264,6 +265,7 @@ describe('commands (JSON)', () => {
     [['languages'], 'Spanish'],
     [['languages', '--abbreviations'], '"es"'],
     [['courses'], 'MATH_BT'],
+    [['switch-course', 'es', '--from', 'en'], 'DUOLINGO_ES_EN'],
     [['friends'], 'friend1'],
     [['calendar'], '10'],
     [['leaderboard'], 'friend1'],

@@ -120,6 +120,17 @@ function makeClientWithMockHttp(
       }
       return { data: resp.data, status: resp.status };
     }),
+    patch: vi.fn(async (url: string, _data: unknown) => {
+      const key = [...responses.keys()].find((k) => url.includes(k));
+      const resp = responses.get(key!)!;
+      if (resp.status >= 400) {
+        throw Object.assign(new Error(`HTTP ${resp.status}`), {
+          isAxiosError: true,
+          response: { status: resp.status, data: resp.data },
+        });
+      }
+      return { data: resp.data, status: resp.status };
+    }),
   };
 
   // Inject mock http
@@ -130,6 +141,7 @@ function makeClientWithMockHttp(
 interface HttpMock {
   get: ReturnType<typeof vi.fn>;
   post: ReturnType<typeof vi.fn>;
+  patch: ReturnType<typeof vi.fn>;
 }
 
 function httpMock(client: DuolingoClient): HttpMock {
@@ -201,6 +213,26 @@ describe('DuolingoClient', () => {
       await client.getUserData();
 
       expect(mockGet).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates every spelling of a username', async () => {
+      const responses = new Map([
+        ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+        ['/users/TestUser', { status: 200, data: MOCK_USER_DATA }],
+        ['/users/other', { status: 200, data: MOCK_USER_DATA }],
+      ]);
+      const client = makeClientWithMockHttp(responses);
+      const mockGet = (
+        client as unknown as { http: { get: ReturnType<typeof vi.fn> } }
+      ).http.get;
+
+      await client.getUserData('TestUser');
+      await client.getUserData('other');
+      client.invalidateCache('testuser');
+      await client.getUserData('TestUser');
+      await client.getUserData('other');
+
+      expect(mockGet).toHaveBeenCalledTimes(3);
     });
 
     it('throws DuolingoNotFoundError on 404', async () => {
@@ -693,6 +725,142 @@ describe('DuolingoClient', () => {
         options,
       );
       expect(await client.getStreakGoalNextOptions()).toEqual(options);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // switchCourse
+  // -------------------------------------------------------------------------
+  describe('switchCourse', () => {
+    const COURSES = {
+      courses: [
+        {
+          id: 'DUOLINGO_ZH_EN',
+          subject: 'language',
+          learningLanguage: 'zh',
+          fromLanguage: 'en',
+          title: 'Chinese',
+        },
+        {
+          id: 'DUOLINGO_FR_EN',
+          subject: 'language',
+          learningLanguage: 'fr',
+          fromLanguage: 'en',
+        },
+        {
+          id: 'DUOLINGO_FR_DE',
+          subject: 'language',
+          learningLanguage: 'fr',
+          fromLanguage: 'de',
+        },
+        { id: 'MATH_BT', subject: 'math', topic: 'bt', fromLanguage: 'en' },
+      ],
+    };
+
+    function makeSwitchClient(patch: {
+      status: number;
+      data: unknown;
+    }): DuolingoClient {
+      return makeClientWithMockHttp(
+        new Map([
+          ['/users/testuser', { status: 200, data: MOCK_USER_DATA }],
+          ['/2023-05-23/users/12345?fields=fromLanguage', patch],
+          [
+            '/2023-05-23/users/12345?fields=courses',
+            { status: 200, data: COURSES },
+          ],
+        ]),
+      );
+    }
+
+    function patchCall(client: DuolingoClient): unknown[] {
+      return httpMock(client).patch.mock.calls[0]!;
+    }
+
+    it('switches to the course of a language', async () => {
+      const client = makeSwitchClient({
+        status: 200,
+        data: { learningLanguage: 'zh', fromLanguage: 'en' },
+      });
+      const course = await client.switchCourse('zs');
+      expect(course.id).toBe('DUOLINGO_ZH_EN');
+      const [url, body] = patchCall(client);
+      expect(url).toContain('/2023-05-23/users/12345?fields=');
+      expect(body).toEqual({
+        signal: null,
+        currentCourseId: 'DUOLINGO_ZH_EN',
+        fromLanguage: 'en',
+      });
+    });
+
+    it('picks the course by its source language', async () => {
+      const client = makeSwitchClient({
+        status: 200,
+        data: { learningLanguage: 'fr', fromLanguage: 'de' },
+      });
+      const course = await client.switchCourse('fr', 'de');
+      expect(course.id).toBe('DUOLINGO_FR_DE');
+    });
+
+    it('fails when Duolingo switched to another source language', async () => {
+      const client = makeSwitchClient({
+        status: 200,
+        data: { learningLanguage: 'fr', fromLanguage: 'en' },
+      });
+      await expect(client.switchCourse('fr', 'de')).rejects.toThrow(
+        "Duolingo did not confirm the switch to 'fr'.",
+      );
+    });
+
+    it('asks for the source language when there are several', async () => {
+      const client = makeSwitchClient({ status: 200, data: {} });
+      await expect(client.switchCourse('fr')).rejects.toThrow(
+        "You learn 'fr' from 'en', 'de'.",
+      );
+      expect(httpMock(client).patch).not.toHaveBeenCalled();
+    });
+
+    it('rejects courses the user is not enrolled in', async () => {
+      const client = makeSwitchClient({ status: 200, data: {} });
+      await expect(client.switchCourse('es')).rejects.toThrow(
+        DuolingoNotFoundError,
+      );
+      await expect(client.switchCourse('fr', 'es')).rejects.toThrow(
+        "No course for 'fr' from 'es' found.",
+      );
+      await expect(client.switchCourse('bt')).rejects.toThrow(
+        "No course for 'bt' found.",
+      );
+    });
+
+    it('fails when Duolingo does not confirm the switch', async () => {
+      const client = makeSwitchClient({ status: 200, data: '<html></html>' });
+      await expect(client.switchCourse('zh')).rejects.toThrow(
+        "Duolingo did not confirm the switch to 'zh'.",
+      );
+    });
+
+    it('maps HTTP errors', async () => {
+      const client = makeSwitchClient({ status: 401, data: {} });
+      await expect(client.switchCourse('zh')).rejects.toThrow(
+        DuolingoAuthError,
+      );
+    });
+
+    it('reloads the user data after the switch', async () => {
+      const client = makeSwitchClient({
+        status: 200,
+        data: { learningLanguage: 'zh', fromLanguage: 'en' },
+      });
+      await client.getUserData();
+      await client.switchCourse('zh');
+      await client.getUserData();
+      await client.getUserDataV2(12345);
+      const gets = httpMock(client).get.mock.calls.map((c: unknown[]) =>
+        String(c[0]),
+      );
+      expect(gets.filter((u) => u.endsWith('/users/testuser'))).toHaveLength(2);
+      expect(gets.filter((u) => u.includes('fields=courses'))).toHaveLength(2);
     });
   });
 

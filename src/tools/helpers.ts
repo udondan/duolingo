@@ -24,9 +24,20 @@ export const UsernameFieldSchema = z
       "Use this to look up another user's public data.",
   );
 
-/** Annotations shared by all tools: they only read from Duolingo. */
+/** Annotations of the tools that only read from Duolingo. */
 export const READ_ONLY = {
   readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
+/**
+ * Annotations of the tools that change the account in a way that can be
+ * undone, such as switching the active course.
+ */
+export const WRITE = {
+  readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: true,

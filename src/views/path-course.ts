@@ -11,9 +11,44 @@ import type {
   DuolingoSkill,
   DuolingoUserData,
 } from '../client/types.js';
+import { notFound, type View } from './view.js';
 
 /** Language codes that the legacy API uses in place of the current ones. */
 const LEGACY_LANGUAGE_CODES: Record<string, string> = { zh: 'zs', zs: 'zh' };
+
+/**
+ * The reply for a course of the authenticated user that is not the active
+ * one: Duolingo only returns the data of the active course.
+ */
+export function inactiveCourse(abbr: string): View {
+  return notFound(
+    `'${abbr}' is not your active course, and Duolingo only returns the ` +
+      'topics, skills and words of the active course. Switch to it first ' +
+      '(MCP tool duolingo_switch_course, CLI command switch-course); this ' +
+      'also changes the active course in the Duolingo apps.',
+  );
+}
+
+/**
+ * The reply for a language without language data: for the authenticated
+ * user's other courses, that they are not active, otherwise `message`.
+ */
+export async function missingLanguage(
+  client: DuolingoClient,
+  abbr: string,
+  username: string | undefined,
+  message: string,
+): Promise<View> {
+  if (client.isAuthenticatedUser(username)) {
+    const { id } = await client.getUserData();
+    const wanted = abbr === 'zs' ? 'zh' : abbr;
+    const { courses } = await client.getUserDataV2(id);
+    if (courses.some((c) => c.learningLanguage === wanted)) {
+      return inactiveCourse(abbr);
+    }
+  }
+  return notFound(message);
+}
 
 /**
  * The legacy language data of a language, by its current or legacy code
@@ -55,18 +90,18 @@ function pathSkill(skill: DuolingoCurrentCourseSkill): DuolingoSkill {
 
 /**
  * The language data with the skills of the current course when its legacy
- * skill tree is empty. Unchanged for other users and when the language is not
- * the current course.
+ * skill tree is empty. Unchanged for other users; for a language that is not
+ * the active course, the reply that says so.
  */
 export async function withPathSkills(
   client: DuolingoClient,
   langData: DuolingoLanguageData,
   opts: { language_abbr: string; username?: string },
-): Promise<DuolingoLanguageData> {
+): Promise<DuolingoLanguageData | View> {
   if (langData.skills.length > 0) return langData;
   if (!client.isAuthenticatedUser(opts.username)) return langData;
   const course = await client.getCurrentCourse(opts.language_abbr);
-  if (!course) return langData;
+  if (!course) return inactiveCourse(opts.language_abbr);
   return { ...langData, skills: course.skills.map(pathSkill) };
 }
 

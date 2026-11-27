@@ -119,6 +119,8 @@ describe('Language Tools', () => {
           },
         ),
       invalidateCache: vi.fn(),
+      isAuthenticatedUser: vi.fn().mockReturnValue(true),
+      getUserDataV2: vi.fn().mockResolvedValue({ courses: [] }),
     };
 
     vi.spyOn(duolingoModule, 'getClient').mockReturnValue(
