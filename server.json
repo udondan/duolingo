@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.udondan/duolingo",
+  "title": "Duolingo",
+  "description": "Read-only access to Duolingo: profile, streak, XP, courses, friends, leaderboard and topics",
+  "version": "2.1.0",
+  "repository": {
+    "url": "https://github.com/udondan/duolingo",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@udondan/duolingo",
+      "version": "2.1.0",
+      "runtimeHint": "npx",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "DUOLINGO_USERNAME",
+          "description": "Duolingo username",
+          "isRequired": true,
+          "isSecret": false
+        },
+        {
+          "name": "DUOLINGO_JWT",
+          "description": "Duolingo JWT token (the jwt_token cookie of a logged-in browser session)",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/udondan/duolingo/compare/v2.0.2...v2.1.0) (2026-11-27)
+
+
+### Features
+
+* publish the MCP server to the MCP Registry ([#117](https://github.com/udondan/duolingo/issues/117)) ([cfac0ef](https://github.com/udondan/duolingo/commit/cfac0efbb197e02847792d0c91bdf9842f009747))
+
 ## [2.0.2](https://github.com/udondan/duolingo/compare/v2.0.1...v2.0.2) (2026-11-16)
 
 
