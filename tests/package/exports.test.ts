@@ -95,6 +95,7 @@ describe('Package exports: runtime values', () => {
         'getCurrentCourse',
         'getLearnedLexemes',
         'invalidateCache',
+        'isAuthenticatedUser',
       ];
       for (const method of expectedMethods) {
         expect(

@@ -55,15 +55,17 @@ function pathSkill(skill: DuolingoCurrentCourseSkill): DuolingoSkill {
 
 /**
  * The language data with the skills of the current course when its legacy
- * skill tree is empty. Unchanged when the language is not the current course.
+ * skill tree is empty. Unchanged for other users and when the language is not
+ * the current course.
  */
 export async function withPathSkills(
   client: DuolingoClient,
   langData: DuolingoLanguageData,
-  abbr: string,
+  opts: { language_abbr: string; username?: string },
 ): Promise<DuolingoLanguageData> {
   if (langData.skills.length > 0) return langData;
-  const course = await client.getCurrentCourse(abbr);
+  if (!client.isAuthenticatedUser(opts.username)) return langData;
+  const course = await client.getCurrentCourse(opts.language_abbr);
   if (!course) return langData;
   return { ...langData, skills: course.skills.map(pathSkill) };
 }
@@ -86,7 +88,7 @@ export async function pathCourseWords(
   abbr: string,
   username: string | undefined,
 ): Promise<string[] | undefined> {
-  if (username) return undefined;
+  if (!client.isAuthenticatedUser(username)) return undefined;
   const lexemes = await client.getLearnedLexemes(abbr);
   return lexemes?.map((lexeme) => lexeme.text);
 }

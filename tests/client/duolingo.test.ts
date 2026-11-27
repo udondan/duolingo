@@ -898,7 +898,7 @@ describe('DuolingoClient', () => {
       client.invalidateCache('someone-else');
       await client.getCurrentCourse('zh');
       expect(courseCalls()).toBe(1);
-      client.invalidateCache('testuser');
+      client.invalidateCache('TestUser');
       await client.getCurrentCourse('zh');
       expect(courseCalls()).toBe(2);
       client.invalidateCache();

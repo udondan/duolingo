@@ -144,8 +144,7 @@ async function loadLanguage(
       `Language '${opts.language_abbr}' not found. Make sure the user is learning this language.`,
     );
   }
-  if (opts.username) return langData;
-  return withPathSkills(client, langData, opts.language_abbr);
+  return withPathSkills(client, langData, opts);
 }
 
 function isView(value: DuolingoLanguageData | View): value is View {

@@ -49,6 +49,9 @@ function mockClient(methods: Record<string, unknown>): void {
       typeof value === 'function' ? value : vi.fn().mockResolvedValue(value),
     ]),
   );
+  // The authenticated user of the mock client is 'testuser'.
+  client.isAuthenticatedUser ??= (username?: string) =>
+    username === undefined || username === 'testuser';
   vi.spyOn(duolingoModule, 'getClient').mockReturnValue(
     client as unknown as DuolingoClient,
   );
@@ -653,7 +656,9 @@ describe('language views', () => {
       ],
     };
 
-    function mockPathCourse(): ReturnType<typeof vi.fn> {
+    function mockPathCourse(
+      extra: Record<string, unknown> = {},
+    ): ReturnType<typeof vi.fn> {
       const getCurrentCourse = vi.fn().mockResolvedValue(PATH_COURSE);
       mockClient({
         getUserData: {
@@ -673,6 +678,7 @@ describe('language views', () => {
           },
         },
         getCurrentCourse,
+        ...extra,
       });
       return getCurrentCourse;
     }
@@ -769,6 +775,15 @@ describe('language views', () => {
         getLearnedLexemes: null,
       });
       expect((await knownWordsView({ language_abbr: 'fr' })).data).toEqual([]);
+    });
+
+    it('reads the current course when the own username is given', async () => {
+      const getLearnedLexemes = vi.fn().mockResolvedValue([{ text: '辣' }]);
+      const getCurrentCourse = mockPathCourse({ getLearnedLexemes });
+      const opts = { language_abbr: 'zh', username: 'testuser' };
+      expect((await knownTopicsView(opts)).data).toEqual(['Family', 'Food']);
+      expect((await knownWordsView(opts)).data).toEqual(['辣']);
+      expect(getCurrentCourse).toHaveBeenCalledWith('zh');
     });
 
     it('does not read the current course for other users', async () => {

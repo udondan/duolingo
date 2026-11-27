@@ -109,9 +109,20 @@ export class DuolingoClient {
     } else {
       this.userDataCache.clear();
     }
-    if (!username || username === this.username) {
+    if (this.isAuthenticatedUser(username)) {
       this.currentCourseCache = null;
     }
+  }
+
+  /**
+   * Whether a username refers to the authenticated user: no username, or the
+   * user's own (Duolingo usernames are case-insensitive).
+   */
+  isAuthenticatedUser(username?: string): boolean {
+    return (
+      username === undefined ||
+      username.toLowerCase() === this.username.toLowerCase()
+    );
   }
 
   /**
