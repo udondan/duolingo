@@ -719,6 +719,58 @@ describe('language views', () => {
       expect((await knownTopicsView({ language_abbr: 'fr' })).data).toEqual([]);
     });
 
+    it('fills in missing names and level counts of path skills', async () => {
+      mockClient({
+        getUserData: { language_data: { zs: { skills: [] } } },
+        getCurrentCourse: {
+          learningLanguage: 'zh',
+          fromLanguage: 'en',
+          skills: [{ id: 'nameless' }, { id: 'x', name: 'Started', levels: 0 }],
+        },
+      });
+      const result = await learnedSkillsView({ language_abbr: 'zh' });
+      expect(result.data).toEqual([]);
+      expect((await unknownTopicsView({ language_abbr: 'zh' })).data).toEqual([
+        'Started',
+        'nameless',
+      ]);
+    });
+
+    it('languageProgressView counts no skills without a current course', async () => {
+      mockClient({
+        getUserData: {
+          language_data: { fr: { num_skills_learned: 0, skills: [] } },
+        },
+        getCurrentCourse: null,
+      });
+      const result = await languageProgressView({ language_abbr: 'fr' });
+      expect(result.data).toMatchObject({ num_skills_learned: 0 });
+    });
+
+    it('languageProgressView ignores path skills without levels', async () => {
+      mockClient({
+        getUserData: {
+          language_data: { zs: { num_skills_learned: 0, skills: [] } },
+        },
+        getCurrentCourse: {
+          learningLanguage: 'zh',
+          fromLanguage: 'en',
+          skills: [{ id: 'a' }, { id: 'b', finishedLevels: 1 }],
+        },
+      });
+      const result = await languageProgressView({ language_abbr: 'zh' });
+      expect(result.data).toMatchObject({ num_skills_learned: 1 });
+    });
+
+    it('knownWordsView is empty when the course is not current', async () => {
+      mockClient({
+        getUserData: { language_data: { fr: { skills: [] } } },
+        getCurrentCourse: null,
+        getLearnedLexemes: null,
+      });
+      expect((await knownWordsView({ language_abbr: 'fr' })).data).toEqual([]);
+    });
+
     it('does not read the current course for other users', async () => {
       const getCurrentCourse = mockPathCourse();
       const result = await knownTopicsView({

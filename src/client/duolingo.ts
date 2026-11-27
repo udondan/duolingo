@@ -109,6 +109,9 @@ export class DuolingoClient {
     } else {
       this.userDataCache.clear();
     }
+    if (!username || username === this.username) {
+      this.currentCourseCache = null;
+    }
   }
 
   /**
@@ -442,7 +445,13 @@ export class DuolingoClient {
   async getCurrentCourse(
     langAbbr: string,
   ): Promise<DuolingoCurrentCourse | null> {
-    this.currentCourseCache ??= this.fetchCurrentCourse();
+    // A failed fetch is not cached, so the next call tries again.
+    this.currentCourseCache ??= this.fetchCurrentCourse().catch(
+      (err: unknown) => {
+        this.currentCourseCache = null;
+        throw err;
+      },
+    );
     const course = await this.currentCourseCache;
     if (!course) return null;
     const wanted = langAbbr === 'zs' ? 'zh' : langAbbr;
@@ -502,8 +511,15 @@ export class DuolingoClient {
           lastTotalLexemeCount: 0,
           progressedSkills,
         });
-      words.push(...(resp.learnedLexemes ?? []));
-      startIndex = resp.pagination?.nextStartIndex;
+      const page = resp.learnedLexemes ?? [];
+      words.push(...page);
+      const next = resp.pagination?.nextStartIndex;
+      // Stop on an empty page or a start index that does not move forward,
+      // so a misbehaving response cannot loop forever.
+      startIndex =
+        page.length > 0 && typeof next === 'number' && next > startIndex
+          ? next
+          : null;
     }
     return words;
   }
