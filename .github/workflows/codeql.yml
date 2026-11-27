@@ -1,0 +1,45 @@
+---
+name: CodeQL
+
+# The ruleset requires CodeQL results for every pull request. The default
+# setup of code scanning skips pull requests from forks, so they could never
+# be merged; this workflow scans them too. Fork runs need approval like the
+# other workflows, and code scanning accepts uploads from pull_request runs
+# even with the read-only token of a fork.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload the results
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - actions
+          - javascript-typescript
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
