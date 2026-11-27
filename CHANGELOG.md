@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/udondan/duolingo/compare/v2.1.0...v2.1.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* read words, topics, skills and progress of path courses ([#109](https://github.com/udondan/duolingo/issues/109)) ([0e4b23c](https://github.com/udondan/duolingo/commit/0e4b23c18e2972ed86a3e85f8baf7295d48a4e40))
+
 ## [2.1.0](https://github.com/udondan/duolingo/compare/v2.0.2...v2.1.0) (2026-11-27)
 
 
