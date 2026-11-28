@@ -11,7 +11,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAccountTools } from './tools/account.js';
 import { registerLanguageTools } from './tools/language.js';
-import { registerShopTools } from './tools/shop.js';
 import { version } from './version.js';
 
 /** Create the MCP server with all Duolingo tools registered. */
@@ -35,7 +34,6 @@ export function createServer(): McpServer {
 
   registerAccountTools(server);
   registerLanguageTools(server);
-  registerShopTools(server);
   return server;
 }
 

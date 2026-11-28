@@ -243,30 +243,25 @@ describe('MCP Server: tool discovery', () => {
     const names = tools.map((t) => t.name).sort();
 
     const expectedTools = [
-      'duolingo_get_abbreviation_of',
       'duolingo_get_audio_url',
       'duolingo_get_calendar',
       'duolingo_get_courses',
       'duolingo_get_currencies',
       'duolingo_get_daily_xp_progress',
       'duolingo_get_friends',
-      'duolingo_get_golden_topics',
       'duolingo_get_health',
-      'duolingo_get_known_topics',
       'duolingo_get_known_words',
       'duolingo_get_language_details',
-      'duolingo_get_language_from_abbr',
       'duolingo_get_language_progress',
       'duolingo_get_language_voices',
       'duolingo_get_languages',
       'duolingo_get_leaderboard',
       'duolingo_get_learned_skills',
-      'duolingo_get_reviewable_topics',
       'duolingo_get_settings',
       'duolingo_get_shop_items',
       'duolingo_get_streak_goal',
       'duolingo_get_streak_info',
-      'duolingo_get_unknown_topics',
+      'duolingo_get_topics',
       'duolingo_get_user_info',
       'duolingo_switch_course',
     ].sort();
@@ -456,22 +451,13 @@ describe('MCP Server: tool execution via wire protocol', () => {
     expect(result).toContain('hola');
   });
 
-  it('duolingo_get_language_from_abbr returns full name', async () => {
-    const result = await callTool(client, 'duolingo_get_language_from_abbr', {
-      language_abbr: 'es',
-    });
-    expect(result).toBe('Spanish');
+  it('duolingo_get_languages returns name and abbreviation', async () => {
+    const result = await callTool(client, 'duolingo_get_languages', {});
+    expect(result).toContain('- Spanish (es)');
   });
 
-  it('duolingo_get_abbreviation_of returns abbreviation', async () => {
-    const result = await callTool(client, 'duolingo_get_abbreviation_of', {
-      language_name: 'Spanish',
-    });
-    expect(result).toBe('es');
-  });
-
-  it('duolingo_get_known_topics returns learned topics', async () => {
-    const result = await callTool(client, 'duolingo_get_known_topics', {
+  it('duolingo_get_topics returns learned topics', async () => {
+    const result = await callTool(client, 'duolingo_get_topics', {
       language_abbr: 'es',
     });
     expect(result).toContain('Basics 1');
@@ -499,15 +485,15 @@ describe('MCP Server: tool execution via wire protocol', () => {
   });
 
   it('missing required argument returns validation error in content', async () => {
-    // duolingo_get_language_from_abbr requires language_abbr
+    // duolingo_get_topics requires language_abbr
     const result = await client.callTool({
-      name: 'duolingo_get_language_from_abbr',
+      name: 'duolingo_get_topics',
       arguments: {},
     });
     expect(result.isError).toBe(true);
     const text = (result.content as { text: string }[])
       .map((c) => c.text)
       .join('');
-    expect(text).toContain('duolingo_get_language_from_abbr');
+    expect(text).toContain('duolingo_get_topics');
   });
 });

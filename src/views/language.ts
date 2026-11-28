@@ -169,39 +169,46 @@ function topicListView(title: string, topics: string[]): View {
   };
 }
 
-async function topicsView(
-  opts: LanguageQuery,
-  title: string,
-  filter: (skill: DuolingoSkill) => boolean,
+/** Which topics `topicsView` lists. */
+export const TOPIC_FILTERS = [
+  'known',
+  'unknown',
+  'golden',
+  'reviewable',
+] as const;
+
+export type TopicFilter = (typeof TOPIC_FILTERS)[number];
+
+const TOPIC_SELECTIONS: Record<
+  TopicFilter,
+  { title: string; matches: (skill: DuolingoSkill) => boolean }
+> = {
+  known: { title: 'Known Topics', matches: (s) => s.learned },
+  unknown: { title: 'Unknown Topics', matches: (s) => !s.learned },
+  golden: {
+    title: 'Golden (Mastered) Topics',
+    matches: (s) => s.learned && s.strength === 1.0,
+  },
+  reviewable: {
+    title: 'Reviewable Topics',
+    matches: (s) => s.learned && s.strength < 1.0,
+  },
+};
+
+/**
+ * The names of the topics (skills) of a language, sorted: the learned ones
+ * (`known`, the default), the ones not learned yet (`unknown`), the learned
+ * ones that are fully mastered (`golden`) or that need review
+ * (`reviewable`).
+ */
+export async function topicsView(
+  opts: LanguageQuery & { filter?: TopicFilter },
 ): Promise<View> {
+  const { title, matches } = TOPIC_SELECTIONS[opts.filter ?? 'known'];
   const langData = await loadLanguage(opts);
   if (isView(langData)) return langData;
-  const topics = langData.skills.filter(filter).map((s) => s.title);
+  const topics = langData.skills.filter(matches).map((s) => s.title);
   return topicListView(title, topics);
-}
-
-export function knownTopicsView(opts: LanguageQuery): Promise<View> {
-  return topicsView(opts, 'Known Topics', (s) => s.learned);
-}
-
-export function unknownTopicsView(opts: LanguageQuery): Promise<View> {
-  return topicsView(opts, 'Unknown Topics', (s) => !s.learned);
-}
-
-export function goldenTopicsView(opts: LanguageQuery): Promise<View> {
-  return topicsView(
-    opts,
-    'Golden (Mastered) Topics',
-    (s) => s.learned && s.strength === 1.0,
-  );
-}
-
-export function reviewableTopicsView(opts: LanguageQuery): Promise<View> {
-  return topicsView(
-    opts,
-    'Reviewable Topics',
-    (s) => s.learned && s.strength < 1.0,
-  );
 }
 
 /** The words of the learned skills of the legacy skill tree. */

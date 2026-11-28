@@ -98,21 +98,15 @@ export function registerAccountTools(server: McpServer): void {
     {
       title: 'Get Duolingo Learning Languages',
       description:
-        "Lists the language courses a user (default: the authenticated user) learns, as full names like 'French' or, with `abbreviations`, as codes like 'fr', which most language tools take. Languages only: for all courses, Math, Chess and Music too, with XP use duolingo_get_courses.",
+        "Lists the language courses a user (default: the authenticated user) learns, each with its full name like 'French' and its abbreviation like 'fr'. Most language tools take the abbreviation as `language_abbr`, duolingo_get_language_details takes the name; use this list to convert between them. Languages only: for all courses, Math, Chess and Music too, with XP use duolingo_get_courses.",
       inputSchema: {
         username: UsernameFieldSchema,
-        abbreviations: z
-          .boolean()
-          .default(false)
-          .describe(
-            "If true, return language abbreviations (e.g. 'fr') instead of full names (e.g. 'French').",
-          ),
         response_format: ResponseFormatSchema,
       },
       annotations: READ_ONLY,
     },
-    ({ username, abbreviations, response_format }) =>
-      reply(() => languagesView({ username, abbreviations }), response_format),
+    ({ username, response_format }) =>
+      reply(() => languagesView({ username }), response_format),
   );
 
   server.registerTool(

@@ -26,20 +26,13 @@ import { friendsView, leaderboardView } from '../../src/views/social.js';
 import {
   audioUrlView,
   computeDependencyOrder,
-  goldenTopicsView,
-  knownTopicsView,
   knownWordsView,
   languageDetailsView,
   languageProgressView,
   languageVoicesView,
   learnedSkillsView,
-  reviewableTopicsView,
-  unknownTopicsView,
+  topicsView,
 } from '../../src/views/language.js';
-import {
-  abbreviationOfView,
-  languageFromAbbrView,
-} from '../../src/views/utils.js';
 import { notFound, renderView } from '../../src/views/view.js';
 
 function mockClient(methods: Record<string, unknown>): void {
@@ -279,8 +272,8 @@ describe('account views', () => {
       },
     });
     const view = await languagesView({});
-    expect(view.data).toEqual(['fr']);
-    expect(view.markdown()).toBe('# Learning Languages\n\n- fr');
+    expect(view.data).toEqual([{ name: 'fr', abbreviation: 'fr' }]);
+    expect(view.markdown()).toBe('# Learning Languages\n\n- fr (fr)');
   });
 
   it('friendsView markdown uses the username without a display name', async () => {
@@ -535,7 +528,7 @@ describe('language views', () => {
       getUserDataV2,
       getLearnedLexemes: null,
     });
-    for (const view of [knownTopicsView, knownWordsView, learnedSkillsView]) {
+    for (const view of [topicsView, knownWordsView, learnedSkillsView]) {
       const result = await view({ language_abbr: 'zs' });
       expect(result.data).toBeUndefined();
       expect(result.message).toContain("'zs' is not your active course");
@@ -587,7 +580,7 @@ describe('language views', () => {
       getUserDataV2: { courses: [] },
       getLearnedLexemes: null,
     });
-    for (const view of [knownTopicsView, knownWordsView, learnedSkillsView]) {
+    for (const view of [topicsView, knownWordsView, learnedSkillsView]) {
       const result = await view({ language_abbr: 'xx' });
       expect(result.data).toBeUndefined();
       expect(result.message).toContain("Language 'xx' not found");
@@ -604,9 +597,7 @@ describe('language views', () => {
       getLearnedLexemes: [],
     });
     const opts = { language_abbr: 'fr' };
-    expect((await knownTopicsView(opts)).markdown()).toBe(
-      'No known topics found.',
-    );
+    expect((await topicsView(opts)).markdown()).toBe('No known topics found.');
     expect((await knownWordsView(opts)).markdown()).toBe(
       "No known words found for language 'fr'.",
     );
@@ -709,10 +700,20 @@ describe('language views', () => {
     it('topic views read the skills of the current course', async () => {
       const getCurrentCourse = mockPathCourse();
       const opts = { language_abbr: 'zh' };
-      expect((await knownTopicsView(opts)).data).toEqual(['Family', 'Food']);
-      expect((await unknownTopicsView(opts)).data).toEqual(['Travel']);
-      expect((await goldenTopicsView(opts)).data).toEqual(['Family']);
-      expect((await reviewableTopicsView(opts)).data).toEqual(['Food']);
+      expect((await topicsView(opts)).data).toEqual(['Family', 'Food']);
+      expect((await topicsView({ ...opts, filter: 'known' })).data).toEqual([
+        'Family',
+        'Food',
+      ]);
+      expect((await topicsView({ ...opts, filter: 'unknown' })).data).toEqual([
+        'Travel',
+      ]);
+      expect((await topicsView({ ...opts, filter: 'golden' })).data).toEqual([
+        'Family',
+      ]);
+      expect(
+        (await topicsView({ ...opts, filter: 'reviewable' })).data,
+      ).toEqual(['Food']);
       expect(getCurrentCourse).toHaveBeenCalledWith('zh');
     });
 
@@ -745,7 +746,7 @@ describe('language views', () => {
         getUserData: { language_data: { fr: { skills: [] } } },
         getCurrentCourse: null,
       });
-      const result = await knownTopicsView({ language_abbr: 'fr' });
+      const result = await topicsView({ language_abbr: 'fr' });
       expect(result.data).toBeUndefined();
       expect(result.message).toContain("'fr' is not your active course");
     });
@@ -761,10 +762,9 @@ describe('language views', () => {
       });
       const result = await learnedSkillsView({ language_abbr: 'zh' });
       expect(result.data).toEqual([]);
-      expect((await unknownTopicsView({ language_abbr: 'zh' })).data).toEqual([
-        'Started',
-        'nameless',
-      ]);
+      expect(
+        (await topicsView({ language_abbr: 'zh', filter: 'unknown' })).data,
+      ).toEqual(['Started', 'nameless']);
     });
 
     it('languageProgressView counts no skills without a current course', async () => {
@@ -807,14 +807,14 @@ describe('language views', () => {
       const getLearnedLexemes = vi.fn().mockResolvedValue([{ text: '辣' }]);
       const getCurrentCourse = mockPathCourse({ getLearnedLexemes });
       const opts = { language_abbr: 'zh', username: 'testuser' };
-      expect((await knownTopicsView(opts)).data).toEqual(['Family', 'Food']);
+      expect((await topicsView(opts)).data).toEqual(['Family', 'Food']);
       expect((await knownWordsView(opts)).data).toEqual(['辣']);
       expect(getCurrentCourse).toHaveBeenCalledWith('zh');
     });
 
     it('does not read the current course for other users', async () => {
       const getCurrentCourse = mockPathCourse();
-      const result = await knownTopicsView({
+      const result = await topicsView({
         language_abbr: 'zh',
         username: 'someone',
       });
@@ -896,29 +896,21 @@ describe('language views', () => {
   });
 });
 
-describe('utility views', () => {
-  it('languageFromAbbrView falls back to the abbreviation', async () => {
-    mockClient({
-      getUserData: { id: 1 },
-      getUserDataV2: { courses: [{ subject: 'language', topic: 'fr' }] },
-    });
-    expect((await languageFromAbbrView({ language_abbr: 'fr' })).data).toBe(
-      'fr',
-    );
-  });
-
-  it('abbreviationOfView uses the topic without a learning language', async () => {
+describe('languagesView', () => {
+  it('uses the topic without a learning language', async () => {
     mockClient({
       getUserData: { id: 1 },
       getUserDataV2: {
         courses: [
           { subject: 'language', topic: 'xx' },
           { subject: 'language', title: 'French', topic: 'fr' },
+          { subject: 'chess', topic: 'ch' },
         ],
       },
     });
-    expect((await abbreviationOfView({ language_name: 'french' })).data).toBe(
-      'fr',
-    );
+    expect((await languagesView({})).data).toEqual([
+      { name: 'xx', abbreviation: 'xx' },
+      { name: 'French', abbreviation: 'fr' },
+    ]);
   });
 });

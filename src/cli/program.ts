@@ -31,18 +31,16 @@ import {
 import { friendsView, leaderboardView } from '../views/social.js';
 import {
   audioUrlView,
-  goldenTopicsView,
-  knownTopicsView,
   knownWordsView,
   languageDetailsView,
   languageProgressView,
   languageVoicesView,
   learnedSkillsView,
-  reviewableTopicsView,
-  unknownTopicsView,
+  TOPIC_FILTERS,
+  topicsView,
   type LanguageQuery,
+  type TopicFilter,
 } from '../views/language.js';
-import { abbreviationOfView, languageFromAbbrView } from '../views/utils.js';
 import { toJson, type ResponseFormat, type View } from '../views/view.js';
 import { loadConfigFile } from './config-file.js';
 
@@ -135,12 +133,11 @@ export function buildProgram(options: CliOptions = {}): Command {
 
   program
     .command('languages')
-    .description('Languages the user is learning')
+    .description(
+      "Languages the user is learning, with abbreviations (e.g. 'fr')",
+    )
     .addOption(usernameOption())
-    .option('-a, --abbreviations', "print abbreviations (e.g. 'fr')")
-    .action((opts: UserOpts & { abbreviations?: boolean }) =>
-      show(() => languagesView(opts)),
-    );
+    .action((opts: UserOpts) => show(() => languagesView(opts)));
 
   program
     .command('courses')
@@ -221,19 +218,27 @@ export function buildProgram(options: CliOptions = {}): Command {
       show(() => languageProgressView({ language_abbr: abbr })),
     );
 
+  program
+    .command('topics <abbr>')
+    .description("Names of the topics in a language (e.g. 'fr')")
+    .addOption(usernameOption())
+    .addOption(
+      new Option(
+        '--filter <filter>',
+        'known (learned), unknown (not learned yet), golden (mastered) or reviewable (learned, needs review)',
+      )
+        .choices(TOPIC_FILTERS)
+        .default('known'),
+    )
+    .action((abbr: string, opts: UserOpts & { filter: TopicFilter }) =>
+      show(() => topicsView({ language_abbr: abbr, ...opts })),
+    );
+
   const languageQueries: [
     string,
     string,
     (opts: LanguageQuery) => Promise<View>,
   ][] = [
-    ['known-topics', 'Learned topics', knownTopicsView],
-    ['unknown-topics', 'Topics not learned yet', unknownTopicsView],
-    ['golden-topics', 'Fully mastered topics', goldenTopicsView],
-    [
-      'reviewable-topics',
-      'Learned topics that need review',
-      reviewableTopicsView,
-    ],
     ['known-words', 'Words learned', knownWordsView],
     ['learned-skills', 'Learned skills in learning order', learnedSkillsView],
   ];
@@ -265,24 +270,6 @@ export function buildProgram(options: CliOptions = {}): Command {
         abbr: string | undefined,
         opts: { voice?: string; random: boolean },
       ) => show(() => audioUrlView({ word, language_abbr: abbr, ...opts })),
-    );
-
-  // ── Utilities ─────────────────────────────────────────────────────────────
-
-  program
-    .command('language-name <abbr>')
-    .description("Full name of a language you learn (e.g. 'fr' → 'French')")
-    .addOption(usernameOption())
-    .action((abbr: string, opts: UserOpts) =>
-      show(() => languageFromAbbrView({ language_abbr: abbr, ...opts })),
-    );
-
-  program
-    .command('abbreviation <name>')
-    .description("Abbreviation of a language you learn (e.g. 'French' → 'fr')")
-    .addOption(usernameOption())
-    .action((name: string, opts: UserOpts) =>
-      show(() => abbreviationOfView({ language_name: name, ...opts })),
     );
 
   return program;

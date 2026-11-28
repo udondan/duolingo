@@ -1,8 +1,7 @@
 /**
  * Language-level Duolingo MCP tools.
  *
- * Tools: get_language_details, get_language_progress, get_known_topics,
- *        get_unknown_topics, get_golden_topics, get_reviewable_topics,
+ * Tools: get_language_details, get_language_progress, get_topics,
  *        get_known_words, get_learned_skills,
  *        get_language_voices, get_audio_url
  */
@@ -11,15 +10,13 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   audioUrlView,
-  goldenTopicsView,
-  knownTopicsView,
   knownWordsView,
   languageDetailsView,
   languageProgressView,
   languageVoicesView,
   learnedSkillsView,
-  reviewableTopicsView,
-  unknownTopicsView,
+  TOPIC_FILTERS,
+  topicsView,
   type LanguageQuery,
 } from '../views/language.js';
 import type { View } from '../views/view.js';
@@ -35,7 +32,7 @@ const LanguageAbbrSchema = z
   .min(2)
   .max(5)
   .describe(
-    "Abbreviation of a language the user learns, like 'fr' for French or 'es' for Spanish, as duolingo_get_languages lists them with `abbreviations`.",
+    "Abbreviation of a language the user learns, like 'fr' for French or 'es' for Spanish, as duolingo_get_languages lists them.",
   );
 
 const OptionalLanguageAbbrSchema = z
@@ -55,39 +52,15 @@ const LANGUAGE_QUERY_TOOLS: [
   (opts: LanguageQuery) => Promise<View>,
 ][] = [
   [
-    'duolingo_get_known_topics',
-    'Get Duolingo Known Topics',
-    "Lists the names of the topics (skills) the user has learned in one language, sorted alphabetically: names only. Use it for a quick list of what was covered; for the skills with strength and progress use duolingo_get_learned_skills, for the topics not started duolingo_get_unknown_topics, and to split the learned ones into mastered and in need of review duolingo_get_golden_topics and duolingo_get_reviewable_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
-    knownTopicsView,
-  ],
-  [
-    'duolingo_get_unknown_topics',
-    'Get Duolingo Unknown Topics',
-    "Lists the names of the topics (skills) of one language that the user has not learned yet, sorted alphabetically. Use it to see what is still ahead in the course; the learned ones are in duolingo_get_known_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
-    unknownTopicsView,
-  ],
-  [
-    'duolingo_get_golden_topics',
-    'Get Duolingo Golden (Mastered) Topics',
-    "Lists the names of the learned topics (skills) of one language that are fully mastered (golden, strength 1.0, nothing to review), sorted alphabetically. The learned topics that still need review are in duolingo_get_reviewable_topics; together they make up duolingo_get_known_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
-    goldenTopicsView,
-  ],
-  [
-    'duolingo_get_reviewable_topics',
-    'Get Duolingo Reviewable Topics',
-    "Lists the names of the learned topics (skills) of one language whose strength is below 1.0, so practice would refresh them, sorted alphabetically. Use it to suggest what to review; for the strength of each skill use duolingo_get_learned_skills, for the mastered ones duolingo_get_golden_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
-    reviewableTopicsView,
-  ],
-  [
     'duolingo_get_known_words',
     'Get Duolingo Known Words',
-    "Lists the words (lexemes) the user has learned in one language, without duplicates and sorted alphabetically; it can be several hundred words. Use it for vocabulary, for example to build practice sentences from known words; for topics use duolingo_get_known_topics. On learning-path courses the words come from the authenticated user's active course: switch with duolingo_switch_course to read another.",
+    "Lists the words (lexemes) the user has learned in one language, without duplicates and sorted alphabetically; it can be several hundred words. Use it for vocabulary, for example to build practice sentences from known words; for topics use duolingo_get_topics. On learning-path courses the words come from the authenticated user's active course: switch with duolingo_switch_course to read another.",
     knownWordsView,
   ],
   [
     'duolingo_get_learned_skills',
     'Get Duolingo Learned Skills',
-    "Returns the learned skills of one language as full objects in the order they were learned: title, strength (0 to 1), progress in percent, words, and more. The most detailed and largest of the topic tools: for names only use duolingo_get_known_topics, for the weak ones duolingo_get_reviewable_topics. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
+    "Returns the learned skills of one language as full objects in the order they were learned: title, strength (0 to 1), progress in percent, words, and more. The most detailed and largest of the topic tools: for names only use duolingo_get_topics, with `filter: reviewable` for the weak ones. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
     learnedSkillsView,
   ],
 ];
@@ -98,7 +71,7 @@ export function registerLanguageTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language Details',
       description:
-        "Reads the status of one language for a user, by its full name like 'French': level, points (XP), streak and whether it is the language being learned now. Fails while the active course is not a language course, like Math. Takes the full name; for the abbreviation use duolingo_get_abbreviation_of. For percent to the next level, fluency and skill counts use duolingo_get_language_progress; for all courses at once duolingo_get_courses.",
+        "Reads the status of one language for a user, by its full name like 'French': level, points (XP), streak and whether it is the language being learned now. Fails while the active course is not a language course, like Math. Takes the full name; duolingo_get_languages lists the name and abbreviation of each language. For percent to the next level, fluency and skill counts use duolingo_get_language_progress; for all courses at once duolingo_get_courses.",
       inputSchema: {
         language_name: z
           .string()
@@ -121,7 +94,7 @@ export function registerLanguageTools(server: McpServer): void {
     {
       title: 'Get Duolingo Language Progress',
       description:
-        "Reads detailed progress of the authenticated user in one language, by abbreviation like 'fr': level, percent and points to the next level, fluency score, number of skills learned out of all, and more. Use it to report how far a course is; for level and streak of another user use duolingo_get_language_details, for which topics are done duolingo_get_known_topics.",
+        "Reads detailed progress of the authenticated user in one language, by abbreviation like 'fr': level, percent and points to the next level, fluency score, number of skills learned out of all, and more. Use it to report how far a course is; for level and streak of another user use duolingo_get_language_details, for which topics are done duolingo_get_topics.",
       inputSchema: {
         language_abbr: LanguageAbbrSchema,
         response_format: ResponseFormatSchema,
@@ -149,6 +122,32 @@ export function registerLanguageTools(server: McpServer): void {
         reply(() => view({ language_abbr, username }), response_format),
     );
   }
+
+  server.registerTool(
+    'duolingo_get_topics',
+    {
+      title: 'Get Duolingo Topics',
+      description:
+        "Lists the names of the topics (skills) of one language, sorted alphabetically: names only. `filter` picks which: `known` (default) the learned ones, `unknown` the ones not learned yet, `golden` the learned ones that are fully mastered (strength 1.0, nothing to review), `reviewable` the learned ones whose strength is below 1.0, so practice would refresh them; golden and reviewable together make up known. For the skills with strength and progress use duolingo_get_learned_skills. Courses on the learning path report skills only for the authenticated user's active course: switch with duolingo_switch_course to read another.",
+      inputSchema: {
+        language_abbr: LanguageAbbrSchema,
+        username: UsernameFieldSchema,
+        filter: z
+          .enum(TOPIC_FILTERS)
+          .default('known')
+          .describe(
+            "Which topics to list: 'known' (learned), 'unknown' (not learned yet), 'golden' (learned and fully mastered) or 'reviewable' (learned, strength below 1.0).",
+          ),
+        response_format: ResponseFormatSchema,
+      },
+      annotations: READ_ONLY,
+    },
+    ({ language_abbr, username, filter, response_format }) =>
+      reply(
+        () => topicsView({ language_abbr, username, filter }),
+        response_format,
+      ),
+  );
 
   server.registerTool(
     'duolingo_get_language_voices',

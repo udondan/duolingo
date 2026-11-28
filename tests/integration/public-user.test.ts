@@ -13,10 +13,9 @@
  *   DUOLINGO_JWT           — JWT token for the authenticated user
  *   DUOLINGO_TEST_USERNAME — a different public Duolingo account to query
  *
- * Tools with username support (8 total):
+ * Tools with username support (6 total):
  *   account: get_user_info, get_streak_info, get_languages, get_calendar, get_courses
  *   language: get_language_details
- *   shop: get_language_from_abbr, get_abbreviation_of
  *
  * Note: get_friends, get_leaderboard, and get_language_progress do NOT support
  * username — the Duolingo API requires authentication for friends/leaderboard,
@@ -27,7 +26,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAccountTools } from '../../src/tools/account.js';
 import { registerLanguageTools } from '../../src/tools/language.js';
-import { registerShopTools } from '../../src/tools/shop.js';
 import { resetClient } from '../../src/client/duolingo.js';
 import { callTool } from '../helpers.js';
 
@@ -51,7 +49,6 @@ beforeAll(() => {
   server = new McpServer({ name: 'test', version: '0.0.0' });
   registerAccountTools(server);
   registerLanguageTools(server);
-  registerShopTools(server);
 });
 
 // ---------------------------------------------------------------------------
@@ -185,21 +182,21 @@ describe('duolingo_get_languages', () => {
     expect((data as unknown[]).length).toBeGreaterThan(0);
   });
 
-  it('returns abbreviations when abbreviations=true', async () => {
+  it('returns the name and abbreviation of each language', async () => {
     if (SKIP) return;
 
     const text = await callTool(server, 'duolingo_get_languages', {
       username: TEST_USERNAME,
-      abbreviations: true,
       response_format: 'json',
     });
-    const data = parseJson(text) as string[];
+    const data = parseJson(text) as { name: string; abbreviation: string }[];
 
     expect(Array.isArray(data)).toBe(true);
-    // Abbreviations are short codes like 'fr', 'es', 'ja'
-    for (const abbr of data) {
-      expect(typeof abbr).toBe('string');
-      expect(abbr.length).toBeLessThanOrEqual(5);
+    for (const { name, abbreviation } of data) {
+      expect(name.length).toBeGreaterThan(0);
+      // Abbreviations are short codes like 'fr', 'es', 'ja'
+      expect(abbreviation.length).toBeGreaterThanOrEqual(2);
+      expect(abbreviation.length).toBeLessThanOrEqual(5);
     }
   });
 });
@@ -376,120 +373,5 @@ describe('duolingo_get_language_details', () => {
     expect(typeof data.points).toBe('number');
     expect(typeof data.streak).toBe('number');
     expect(typeof data.current_learning).toBe('boolean');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// duolingo_get_language_from_abbr
-// ---------------------------------------------------------------------------
-
-describe('duolingo_get_language_from_abbr', () => {
-  it('resolves abbreviation for the authenticated user (no username)', async () => {
-    if (SKIP) return;
-
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      abbreviations: true,
-      response_format: 'json',
-    });
-    const abbrs = parseJson(langsText) as string[];
-    if (abbrs.length === 0) return;
-
-    const text = await callTool(server, 'duolingo_get_language_from_abbr', {
-      language_abbr: abbrs[0],
-    });
-
-    // Should return a non-empty full language name
-    expect(typeof text).toBe('string');
-    expect(text.length).toBeGreaterThan(0);
-    // Should not be the abbreviation itself (it should be the full name)
-    expect(text).not.toBe(abbrs[0]);
-  });
-
-  it('resolves abbreviation for the test user (with username)', async () => {
-    if (SKIP) return;
-
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      username: TEST_USERNAME,
-      abbreviations: true,
-      response_format: 'json',
-    });
-    const abbrs = parseJson(langsText) as string[];
-    if (abbrs.length === 0) return;
-
-    const text = await callTool(server, 'duolingo_get_language_from_abbr', {
-      language_abbr: abbrs[0],
-      username: TEST_USERNAME,
-    });
-
-    expect(typeof text).toBe('string');
-    expect(text.length).toBeGreaterThan(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// duolingo_get_abbreviation_of
-// ---------------------------------------------------------------------------
-
-describe('duolingo_get_abbreviation_of', () => {
-  it('resolves full name to abbreviation for the authenticated user (no username)', async () => {
-    if (SKIP) return;
-
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      response_format: 'json',
-    });
-    const names = parseJson(langsText) as string[];
-    if (names.length === 0) return;
-
-    const text = await callTool(server, 'duolingo_get_abbreviation_of', {
-      language_name: names[0],
-    });
-
-    expect(typeof text).toBe('string');
-    expect(text.length).toBeGreaterThan(0);
-    // Abbreviations are short (2-5 chars)
-    expect(text.length).toBeLessThanOrEqual(5);
-  });
-
-  it('resolves full name to abbreviation for the test user (with username)', async () => {
-    if (SKIP) return;
-
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      username: TEST_USERNAME,
-      response_format: 'json',
-    });
-    const names = parseJson(langsText) as string[];
-    if (names.length === 0) return;
-
-    const text = await callTool(server, 'duolingo_get_abbreviation_of', {
-      language_name: names[0],
-      username: TEST_USERNAME,
-    });
-
-    expect(typeof text).toBe('string');
-    expect(text.length).toBeGreaterThan(0);
-    expect(text.length).toBeLessThanOrEqual(5);
-  });
-
-  it('get_language_from_abbr and get_abbreviation_of are inverses', async () => {
-    if (SKIP) return;
-
-    const langsText = await callTool(server, 'duolingo_get_languages', {
-      username: TEST_USERNAME,
-      response_format: 'json',
-    });
-    const names = parseJson(langsText) as string[];
-    if (names.length === 0) return;
-
-    const abbr = await callTool(server, 'duolingo_get_abbreviation_of', {
-      language_name: names[0],
-      username: TEST_USERNAME,
-    });
-
-    const fullName = await callTool(server, 'duolingo_get_language_from_abbr', {
-      language_abbr: abbr,
-      username: TEST_USERNAME,
-    });
-
-    expect(fullName).toBe(names[0]);
   });
 });

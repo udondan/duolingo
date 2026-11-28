@@ -221,8 +221,8 @@ tool.
 - Dual `response_format` support: `'markdown'` (default) and `'json'`
 - Use `ResponseFormatSchema` in `inputSchema`
 
-Simple scalar tools that return a plain string (e.g. `duolingo_get_language_from_abbr`,
-`duolingo_get_abbreviation_of`, `duolingo_get_audio_url`) do not need `response_format`.
+Simple scalar tools that return a plain string (e.g. `duolingo_get_audio_url`)
+do not need `response_format`.
 
 Shared schemas (`src/tools/helpers.ts`):
 

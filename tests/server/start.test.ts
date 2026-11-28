@@ -11,7 +11,7 @@ import { createServer, startMcpServer } from '../../src/mcp.js';
 import { version } from '../../src/version.js';
 
 describe('createServer', () => {
-  it('reports the package version and lists all 26 tools', async () => {
+  it('reports the package version and lists all 21 tools', async () => {
     const server = createServer();
     const [serverTransport, clientTransport] =
       InMemoryTransport.createLinkedPair();
@@ -28,7 +28,7 @@ describe('createServer', () => {
       });
       expect(client.getInstructions()).toContain('DUOLINGO_JWT');
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(26);
+      expect(tools).toHaveLength(21);
     } finally {
       await client.close();
       await serverTransport.close();

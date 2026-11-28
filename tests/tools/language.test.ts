@@ -218,20 +218,21 @@ describe('Language Tools', () => {
   });
 
   // -------------------------------------------------------------------------
-  // duolingo_get_known_topics
+  // duolingo_get_topics
   // -------------------------------------------------------------------------
-  describe('duolingo_get_known_topics', () => {
-    it('returns learned topics', async () => {
-      const result = await callTool(server, 'duolingo_get_known_topics', {
+  describe('duolingo_get_topics', () => {
+    it('returns learned topics by default', async () => {
+      const result = await callTool(server, 'duolingo_get_topics', {
         language_abbr: 'fr',
       });
+      expect(result).toContain('# Known Topics');
       expect(result).toContain('Basics 1');
       expect(result).toContain('Basics 2');
       expect(result).not.toContain('Colors');
     });
 
     it('returns JSON list', async () => {
-      const result = await callTool(server, 'duolingo_get_known_topics', {
+      const result = await callTool(server, 'duolingo_get_topics', {
         language_abbr: 'fr',
         response_format: 'json',
       });
@@ -239,45 +240,44 @@ describe('Language Tools', () => {
       expect(parsed).toContain('Basics 1');
       expect(parsed).not.toContain('Colors');
     });
-  });
 
-  // -------------------------------------------------------------------------
-  // duolingo_get_unknown_topics
-  // -------------------------------------------------------------------------
-  describe('duolingo_get_unknown_topics', () => {
-    it('returns unlearned topics', async () => {
-      const result = await callTool(server, 'duolingo_get_unknown_topics', {
+    it('returns unlearned topics with filter unknown', async () => {
+      const result = await callTool(server, 'duolingo_get_topics', {
         language_abbr: 'fr',
+        filter: 'unknown',
       });
+      expect(result).toContain('# Unknown Topics');
       expect(result).toContain('Colors');
       expect(result).not.toContain('Basics 1');
     });
-  });
 
-  // -------------------------------------------------------------------------
-  // duolingo_get_golden_topics
-  // -------------------------------------------------------------------------
-  describe('duolingo_get_golden_topics', () => {
-    it('returns only strength=1.0 topics', async () => {
-      const result = await callTool(server, 'duolingo_get_golden_topics', {
+    it('returns only strength=1.0 topics with filter golden', async () => {
+      const result = await callTool(server, 'duolingo_get_topics', {
         language_abbr: 'fr',
+        filter: 'golden',
       });
+      expect(result).toContain('# Golden (Mastered) Topics');
       expect(result).toContain('Basics 1');
       expect(result).not.toContain('Basics 2'); // strength 0.7
     });
-  });
 
-  // -------------------------------------------------------------------------
-  // duolingo_get_reviewable_topics
-  // -------------------------------------------------------------------------
-  describe('duolingo_get_reviewable_topics', () => {
-    it('returns learned topics with strength < 1.0', async () => {
-      const result = await callTool(server, 'duolingo_get_reviewable_topics', {
+    it('returns learned topics with strength < 1.0 with filter reviewable', async () => {
+      const result = await callTool(server, 'duolingo_get_topics', {
         language_abbr: 'fr',
+        filter: 'reviewable',
       });
+      expect(result).toContain('# Reviewable Topics');
       expect(result).toContain('Basics 2');
       expect(result).not.toContain('Basics 1'); // strength 1.0
       expect(result).not.toContain('Colors'); // not learned
+    });
+
+    it('rejects an unknown filter', async () => {
+      const result = await callTool(server, 'duolingo_get_topics', {
+        language_abbr: 'fr',
+        filter: 'forgotten',
+      });
+      expect(result).toContain('filter');
     });
   });
 
