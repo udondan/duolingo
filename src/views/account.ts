@@ -5,20 +5,26 @@
 import { getClient } from '../client/duolingo.js';
 import { resolveUserId, titleCase, type View } from './view.js';
 
+/** A language course: its name and the abbreviation the language tools take. */
+export interface LearningLanguage {
+  name: string;
+  abbreviation: string;
+}
+
 export async function languagesView(opts: {
   username?: string;
-  abbreviations?: boolean;
 }): Promise<View> {
   const client = getClient();
   const userId = await resolveUserId(client, opts.username);
   const v2 = await client.getUserDataV2(userId);
-  // Filter to language courses only (not math/chess/music)
-  const languages = v2.courses.flatMap((c) => {
-    if (c.subject !== 'language' || c.learningLanguage === undefined) return [];
-    return [
-      opts.abbreviations ? c.learningLanguage : (c.title ?? c.learningLanguage),
-    ];
-  });
+  // Language courses only (not math/chess/music). Without a learning
+  // language, the topic is the abbreviation.
+  const languages: LearningLanguage[] = v2.courses
+    .filter((c) => c.subject === 'language')
+    .map((c) => {
+      const abbreviation = c.learningLanguage ?? c.topic;
+      return { name: c.title ?? abbreviation, abbreviation };
+    });
 
   return {
     data: languages,
@@ -27,9 +33,11 @@ export async function languagesView(opts: {
         ? 'No languages found. The user may not be learning any languages.'
         : undefined,
     markdown: () =>
-      ['# Learning Languages', '', ...languages.map((l) => `- ${l}`)].join(
-        '\n',
-      ),
+      [
+        '# Learning Languages',
+        '',
+        ...languages.map((l) => `- ${l.name} (${l.abbreviation})`),
+      ].join('\n'),
   };
 }
 

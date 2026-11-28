@@ -362,7 +362,7 @@ describe('Live API: Skills data structure', () => {
     }
   });
 
-  it('known_topics returns only learned skills', async () => {
+  it('known topics are only the learned skills', async () => {
     if (skipIfNoCredentials()) return;
 
     const data = await client.getUserData();

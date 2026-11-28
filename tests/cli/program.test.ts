@@ -262,8 +262,7 @@ describe('commands (JSON)', () => {
     [['streak'], '42'],
     [['streak', '--username', 'other'], '42'],
     [['xp'], '50'],
-    [['languages'], 'Spanish'],
-    [['languages', '--abbreviations'], '"es"'],
+    [['languages'], '"name": "Spanish",\n    "abbreviation": "es"'],
     [['courses'], 'MATH_BT'],
     [['switch-course', 'es', '--from', 'en'], 'DUOLINGO_ES_EN'],
     [['friends'], 'friend1'],
@@ -276,10 +275,11 @@ describe('commands (JSON)', () => {
     [['streak-goal'], '"hasActiveGoal": false'],
     [['language', 'Spanish'], '"level": 5'],
     [['progress', 'es'], '"level": 5'],
-    [['known-topics', 'es'], 'Basics 1'],
-    [['unknown-topics', 'es'], '[]'],
-    [['golden-topics', 'es'], 'Basics 1'],
-    [['reviewable-topics', 'es'], '[]'],
+    [['topics', 'es'], 'Basics 1'],
+    [['topics', 'es', '--filter', 'known'], 'Basics 1'],
+    [['topics', 'es', '--filter', 'unknown'], '[]'],
+    [['topics', 'es', '--filter', 'golden'], 'Basics 1'],
+    [['topics', 'es', '--filter', 'reviewable', '-u', 'testuser'], '[]'],
     [['known-words', 'es'], 'gracias'],
     [['learned-skills', 'es', '-u', 'testuser'], 'Basics 1'],
     [['voices'], 'mathieu'],
@@ -293,8 +293,6 @@ describe('commands (JSON)', () => {
       ['audio-url', 'hola', 'es', '--no-random'],
       '"https://tts.example.com/es/default/hola"',
     ],
-    [['language-name', 'es'], '"Spanish"'],
-    [['abbreviation', 'Spanish'], '"es"'],
   ])('%j prints JSON', async (argv, expected) => {
     expect(await run(...argv)).toBe(0);
     expect(stderr).toBe('');
@@ -377,7 +375,7 @@ describe('program', () => {
 
   it('prints help listing all commands', async () => {
     expect(await run('--help')).toBe(0);
-    for (const command of ['mcp', 'user', 'audio-url', 'abbreviation']) {
+    for (const command of ['mcp', 'user', 'audio-url', 'topics']) {
       expect(stdout).toContain(command);
     }
   });

@@ -408,13 +408,17 @@ describe('Account Tools', () => {
       expect(result).not.toContain('Chess');
     });
 
-    it('returns abbreviations when requested', async () => {
+    it('returns name and abbreviation of each language', async () => {
       const result = await callTool(server, 'duolingo_get_languages', {
-        abbreviations: true,
         response_format: 'json',
       });
       const parsed = JSON.parse(result);
-      expect(parsed).toContain('fr');
+      expect(parsed).toContainEqual({ name: 'French', abbreviation: 'fr' });
+    });
+
+    it('lists name and abbreviation in markdown', async () => {
+      const result = await callTool(server, 'duolingo_get_languages', {});
+      expect(result).toContain('- French (fr)');
     });
 
     it('returns message when no language courses found', async () => {

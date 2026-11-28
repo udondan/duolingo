@@ -108,7 +108,7 @@ duolingo leaderboard --unit month
 | `settings`                                          | Account settings                                       |
 | `streak [-u name]`                                  | Current streak, daily goal and longest streak          |
 | `xp`                                                | XP earned and lessons completed today                  |
-| `languages [-u name] [-a]`                          | Languages being learned (`-a` for abbreviations)       |
+| `languages [-u name]`                               | Languages being learned, with abbreviations            |
 | `courses [-u name]`                                 | All courses, including Math, Chess and Music           |
 | `switch-course <abbr> [--from abbr]`                | Make another language course the active one            |
 | `friends`                                           | Users the authenticated user follows                   |
@@ -120,17 +120,16 @@ duolingo leaderboard --unit month
 | `streak-goal`                                       | Current streak goal and checkpoints                    |
 | `language <name> [-u name]`                         | Level, points and streak of a language (e.g. `French`) |
 | `progress <abbr>`                                   | Detailed progress in a language (e.g. `fr`)            |
-| `known-topics <abbr> [-u name]`                     | Learned topics                                         |
-| `unknown-topics <abbr> [-u name]`                   | Topics not learned yet                                 |
-| `golden-topics <abbr> [-u name]`                    | Fully mastered topics                                  |
-| `reviewable-topics <abbr> [-u name]`                | Learned topics that need review                        |
+| `topics <abbr> [--filter f] [-u name]`              | Topic names, see below for the filters                 |
 | `known-words <abbr> [-u name]`                      | Words learned                                          |
 | `learned-skills <abbr> [-u name]`                   | Learned skills in learning order                       |
 | `voices [abbr]`                                     | Text-to-speech voices                                  |
 | `audio-url <word> [abbr] [--voice v] [--no-random]` | Pronunciation audio URL                                |
-| `language-name <abbr> [-u name]`                    | Full name of a language (`fr` → `French`)              |
-| `abbreviation <name> [-u name]`                     | Abbreviation of a language (`French` → `fr`)           |
 | `mcp`                                               | Start the MCP server (stdio)                           |
+
+`topics --filter` takes `known` (learned, the default), `unknown` (not learned
+yet), `golden` (learned and fully mastered) or `reviewable` (learned, but not
+fully mastered).
 
 Errors go to stderr and the CLI exits with code 1.
 
@@ -313,7 +312,7 @@ active course of your account.
 | `duolingo_get_settings`          | Notification and account settings                                            |
 | `duolingo_get_streak_info`       | Current streak, longest streak, daily goal, extended today                   |
 | `duolingo_get_daily_xp_progress` | XP goal, XP earned today, lessons completed today                            |
-| `duolingo_get_languages`         | Languages being learned (full names or abbreviations)                        |
+| `duolingo_get_languages`         | Languages being learned, each with full name and abbreviation                |
 | `duolingo_get_courses`           | All courses including Math, Chess, and Music with XP per course              |
 | `duolingo_switch_course`         | Make another of your language courses the active one (changes the account)   |
 | `duolingo_get_friends`           | Users the authenticated user follows, with total XP                          |
@@ -330,10 +329,7 @@ active course of your account.
 | -------------------------------- | --------------------------------------------------------- |
 | `duolingo_get_language_details`  | Level, points, streak for a specific language             |
 | `duolingo_get_language_progress` | Detailed progress: level %, points to next level, fluency |
-| `duolingo_get_known_topics`      | Learned topic/skill names                                 |
-| `duolingo_get_unknown_topics`    | Not-yet-learned topics                                    |
-| `duolingo_get_golden_topics`     | Fully mastered topics (strength = 1.0)                    |
-| `duolingo_get_reviewable_topics` | Learned but not fully mastered topics                     |
+| `duolingo_get_topics`            | Topic names: known, unknown, golden or reviewable         |
 | `duolingo_get_known_words`       | Set of known words for a language                         |
 | `duolingo_get_learned_skills`    | Full skill objects sorted by learning order               |
 | `duolingo_get_language_voices`   | Available TTS voice names for a language                  |
@@ -347,13 +343,6 @@ returns this for the active course; for your other courses the tools say so,
 and `duolingo_switch_course` makes one of them active. Switching changes the
 active course in the Duolingo apps too, so the tool is only meant to be used
 when you ask for it.
-
-#### Utilities
-
-| Tool                              | Description                                                       |
-| --------------------------------- | ----------------------------------------------------------------- |
-| `duolingo_get_language_from_abbr` | Convert language abbreviation to full name (e.g. `fr` → `French`) |
-| `duolingo_get_abbreviation_of`    | Convert full language name to abbreviation (e.g. `French` → `fr`) |
 
 ---
 
@@ -584,12 +573,10 @@ src/
 ├── views/
 │   ├── account.ts     # Account queries: data + markdown
 │   ├── language.ts    # Language queries: data + markdown
-│   ├── utils.ts       # Language name/abbreviation lookups
 │   └── view.ts        # View type and rendering
 └── tools/
     ├── account.ts     # Account tools
     ├── language.ts    # Language tools
-    ├── shop.ts        # Utility tools
     └── helpers.ts     # Shared utilities (error handling, Zod schemas)
 ```
 
