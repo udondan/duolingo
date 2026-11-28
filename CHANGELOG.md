@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/udondan/duolingo/compare/v2.3.0...v3.0.0) (2026-11-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* The MCP tools duolingo_get_known_topics, duolingo_get_unknown_topics, duolingo_get_golden_topics and duolingo_get_reviewable_topics are replaced by duolingo_get_topics with `filter`, and the CLI commands known-topics, unknown-topics, golden-topics and reviewable-topics by `topics <abbr> --filter`. The tools duolingo_get_language_from_abbr and duolingo_get_abbreviation_of and the CLI commands language-name and abbreviation are removed: duolingo_get_languages (`languages`) lists name and abbreviation of each language instead, as objects `{ name, abbreviation }` in JSON. Its `abbreviations` parameter (`--abbreviations`) is removed.
+
+### Features
+
+* combine the topic tools and the language name lookups ([#132](https://github.com/udondan/duolingo/issues/132)) ([8d230a7](https://github.com/udondan/duolingo/commit/8d230a7469ea730bedc338296c4868ebee366c37))
+
 ## [2.3.0](https://github.com/udondan/duolingo/compare/v2.2.0...v2.3.0) (2026-11-27)
 
 
