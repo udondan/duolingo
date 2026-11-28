@@ -1,0 +1,178 @@
+name: Publish
+
+on:
+  release:
+    types:
+      - published
+
+# No caches in this workflow: a poisoned cache must not end up in the package
+# or the image.
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js and Bun
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          install_args: node bun # versions from mise.toml
+          cache: false
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Publish
+        run: npm publish --provenance --access public
+
+  # Lists the release in the MCP Registry as io.github.udondan/duolingo. The
+  # registry checks `mcpName` of the npm package just published, and accepts
+  # the namespace via GitHub OIDC.
+  mcp-registry:
+    name: Publish to the MCP Registry
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # login github-oidc
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.16
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # release-please keeps server.json in step with package.json.
+      - name: Check the version in server.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${TAG#v}"
+          jq -e --arg v "$version" '.version == $v and .packages[0].version == $v' server.json \
+            || { echo "::error::server.json doesn't name version $version"; exit 1; }
+
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+
+      # A fixed release, verified against its Sigstore bundle.
+      - name: Download mcp-publisher
+        run: |
+          set -euo pipefail
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          archive="mcp-publisher_${os}_${arch}.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+
+      # npm serves a new version only minutes after `npm publish`, and the
+      # registry rejects the release until then. Wait up to 15 minutes.
+      - name: Wait for the package on npm
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          name="$(jq -r .name server.json)"
+          package="$(jq -r '.packages[0].identifier' server.json)"
+          url="https://registry.npmjs.org/$(jq -rn --arg p "$package" '$p | @uri')/${version}"
+          for attempt in $(seq 30); do
+            if curl --fail --silent --show-error --location "$url" \
+              | jq -e --arg n "$name" '.mcpName == $n' > /dev/null; then
+              echo "$package@$version is on npm"
+              exit 0
+            fi
+            echo "$package@$version not on npm yet (attempt $attempt of 30)"
+            if [ "$attempt" -lt 30 ]; then sleep 30; fi
+          done
+          echo "::error::$package@$version with mcpName $name did not appear on npm within 15 minutes"
+          exit 1
+
+      - name: Log in
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        run: ./mcp-publisher publish
+
+  # Docker Hub has no OIDC for personal accounts, so this uses an access
+  # token, stored only in the environment `docker-hub`.
+  docker:
+    name: Publish to Docker Hub
+    runs-on: ubuntu-latest
+    environment:
+      name: docker-hub
+      url: https://hub.docker.com/r/udondan/duolingo
+    permissions:
+      contents: read
+      id-token: write # keyless cosign signature
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The image takes the compiled dist/, it doesn't compile TypeScript itself.
+      - name: Set up Node.js and Bun
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          install_args: node bun # versions from mise.toml
+          cache: false
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Release tag v1.2.3 → 1.2.3, 1.2, 1 and latest.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: udondan/duolingo
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+
+      # Keyless: the signature names this workflow as signer, via GitHub OIDC
+      # and the public Sigstore log. Signing the digest covers all tags.
+      - name: Sign the image
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: cosign sign --yes "udondan/duolingo@${DIGEST}"
