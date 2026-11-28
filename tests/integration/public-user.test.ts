@@ -163,9 +163,10 @@ describe('duolingo_get_languages', () => {
 
     expect(Array.isArray(data)).toBe(true);
     expect((data as unknown[]).length).toBeGreaterThan(0);
-    for (const lang of data as string[]) {
-      expect(typeof lang).toBe('string');
-      expect(lang.length).toBeGreaterThan(0);
+    for (const lang of data as { name: string; abbreviation: string }[]) {
+      expect(typeof lang.name).toBe('string');
+      expect(lang.name.length).toBeGreaterThan(0);
+      expect(typeof lang.abbreviation).toBe('string');
     }
   });
 
@@ -334,11 +335,11 @@ describe('duolingo_get_language_details', () => {
     const langsText = await callTool(server, 'duolingo_get_languages', {
       response_format: 'json',
     });
-    const langs = parseJson(langsText) as string[];
+    const langs = parseJson(langsText) as { name: string }[];
     if (langs.length === 0) return;
 
     const text = await callTool(server, 'duolingo_get_language_details', {
-      language_name: langs[0],
+      language_name: langs[0].name,
       response_format: 'json',
     });
     const data = parseJson(text) as Record<string, unknown>;
@@ -357,11 +358,11 @@ describe('duolingo_get_language_details', () => {
       username: TEST_USERNAME,
       response_format: 'json',
     });
-    const langs = parseJson(langsText) as string[];
+    const langs = parseJson(langsText) as { name: string }[];
     if (langs.length === 0) return;
 
     const text = await callTool(server, 'duolingo_get_language_details', {
-      language_name: langs[0],
+      language_name: langs[0].name,
       username: TEST_USERNAME,
       response_format: 'json',
     });
